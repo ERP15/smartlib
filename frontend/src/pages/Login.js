@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login } from '../services/api';
 import { setUser, homePathForRole } from '../utils/auth';
 
 export default function Login() {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const role = searchParams.get('role') === 'admin' ? 'admin' : 'student';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,9 +29,13 @@ export default function Login() {
     <div className="page auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <p className="eyebrow">Member Access</p>
-          <h2>Welcome back to SmartLib</h2>
-          <p className="subhead">Log in to manage loans, renewals, and recommendations.</p>
+          <p className="eyebrow">{role === 'admin' ? 'Admin Access' : 'Member Access'}</p>
+          <h2>{role === 'admin' ? 'Admin sign in' : 'Welcome back to SmartLib'}</h2>
+          <p className="subhead">
+            {role === 'admin'
+              ? 'Admin users can log in here to manage the catalog and borrowing.'
+              : 'Log in to manage loans, renewals, and recommendations.'}
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <label className="field">
@@ -55,7 +61,13 @@ export default function Login() {
           <button type="submit" className="btn btn-primary btn-block">Login</button>
         </form>
         <p className="auth-footer">
-          New here? <a href="/register">Create an account</a>
+          {role === 'admin' ? (
+            'Admin users do not register here.'
+          ) : (
+            <>
+              New here? <Link to="/register?role=student">Create an account</Link>
+            </>
+          )}
         </p>
       </div>
       <div className="auth-aside">

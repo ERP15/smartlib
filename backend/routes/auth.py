@@ -1,9 +1,13 @@
 from flask import Blueprint, request, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
+import re
 from ..extensions import db, bcrypt
 from ..models import User
 
 auth_bp = Blueprint('auth', __name__)
+
+EMAIL_PATTERN = re.compile(r'^[^@\s]+@iskolarngbayan\.pup\.edu\.ph$', re.IGNORECASE)
+STUDENT_ID_PATTERN = re.compile(r'^[A-Z0-9]{4}-[A-Z0-9]{5}-PQ-0$', re.IGNORECASE)
 
 
 def _error(message, status):
@@ -13,14 +17,25 @@ def _error(message, status):
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
-    student_id = data.get('student_id')
+    student_id = (data.get('student_id') or '').strip().upper()
     name = data.get('name')
-    email = data.get('email')
+    email = (data.get('email') or '').strip().lower()
     password = data.get('password')
     role = data.get('role', 'student')
 
     if not all([student_id, name, email, password]):
         return _error('Missing required fields', 400)
+
+    # Enforce stricter rules only for student registrations
+    if role == 'student':
+        if not STUDENT_ID_PATTERN.match(student_id):
+            return _error('Student ID must match XXXX-XXXXX-PQ-0', 400)
+
+        if not EMAIL_PATTERN.match(email):
+            return _error('Email must be an @iskolarngbayan.pup.edu.ph address', 400)
+
+        if len(password) not in (6, 8):
+            return _error('Password must be exactly 6 or 8 characters long', 400)
 
     existing = User.query.filter(
         (User.email == email) | (User.student_id == student_id)

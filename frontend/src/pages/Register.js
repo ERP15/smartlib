@@ -1,8 +1,28 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { register } from '../services/api';
 
+const EMAIL_PATTERN = /^[^@\s]+@iskolarngbayan\.pup\.edu\.ph$/i;
+const STUDENT_ID_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{5}-PQ-0$/i;
+
+function getClientError(studentId, email, password) {
+  if (!STUDENT_ID_PATTERN.test(studentId)) {
+    return 'Student ID must match XXXX-XXXXX-PQ-0';
+  }
+
+  if (!EMAIL_PATTERN.test(email)) {
+    return 'Use an @iskolarngbayan.pup.edu.ph email address';
+  }
+
+  if (![6, 8].includes(password.length)) {
+    return 'Password must be exactly 6 or 8 characters long';
+  }
+
+  return null;
+}
+
 export default function Register() {
+  const [searchParams] = useSearchParams();
   const [studentId, setStudentId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -15,11 +35,18 @@ export default function Register() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const clientError = getClientError(studentId.trim(), email.trim(), password);
+    if (clientError) {
+      setError(clientError);
+      return;
+    }
+
     try {
       const res = await register({
-        student_id: studentId,
+        student_id: studentId.trim(),
         name,
-        email,
+        email: email.trim(),
         password,
       });
       setSuccess('Registered successfully. You can now login.');
@@ -38,8 +65,8 @@ export default function Register() {
       <div className="auth-card">
         <div className="auth-header">
           <p className="eyebrow">Library Access</p>
-          <h2>Create your SmartLib account</h2>
-          <p className="subhead">Use your student ID to unlock borrowing, holds, and alerts.</p>
+          <h2>Create your SmartLib student account</h2>
+          <p className="subhead">Use your school email and student ID to unlock borrowing, holds, and alerts.</p>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <label className="field">
@@ -47,9 +74,12 @@ export default function Register() {
             <input
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
-              placeholder="STU001"
+              placeholder="1234-ABCDE-PQ-0"
+              pattern="[A-Za-z0-9]{4}-[A-Za-z0-9]{5}-PQ-0"
+              title="Format: XXXX-XXXXX-PQ-0"
               className="input"
             />
+            <small className="field-hint">Format: XXXX-XXXXX-PQ-0</small>
           </label>
           <label className="field">
             <span>Full name</span>
@@ -65,9 +95,12 @@ export default function Register() {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="samplename@iskolarngbayan.pup.edu.ph"
+              pattern="[^@\\s]+@iskolarngbayan\.pup\.edu\.ph"
+              title="Use your @iskolarngbayan.pup.edu.ph email"
               className="input"
             />
+            <small className="field-hint">Use your @iskolarngbayan.pup.edu.ph email</small>
           </label>
           <label className="field">
             <span>Password</span>
@@ -75,16 +108,19 @@ export default function Register() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="password"
+              minLength={6}
+              maxLength={8}
+              placeholder="6 or 8 characters"
               className="input"
             />
+            <small className="field-hint">Password must be exactly 6 or 8 characters</small>
           </label>
           {error && <div className="alert">{error}</div>}
           {success && <div className="success">{success}</div>}
           <button type="submit" className="btn btn-primary btn-block">Create account</button>
         </form>
         <p className="auth-footer">
-          Already have an account? <a href="/login">Sign in</a>
+          Already have an account? <Link to={`/login?role=${searchParams.get('role') || 'student'}`}>Sign in</Link>
         </p>
       </div>
       <div className="auth-aside">

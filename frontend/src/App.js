@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -10,37 +10,57 @@ import AdminDashboard from './pages/AdminDashboard';
 import { getUser, homePathForRole } from './utils/auth';
 
 function Home() {
+  const [showPicker, setShowPicker] = useState(false);
+  const navigate = useNavigate();
   const user = getUser();
   if (user) {
     return <Navigate to={homePathForRole(user.role)} replace />;
   }
 
   return (
-    <div className="page">
-      <section className="hero">
-        <div className="hero-content">
+    <div className="page landing-page">
+      <div className="landing-backdrop" />
+      <div className="landing-overlay" />
+      <section className="landing-shell">
+        <div className="landing-copy">
           <p className="eyebrow">SmartLib Library System</p>
-          <h1>Find, borrow, and track your next read in one place.</h1>
+          <h1>Discover, borrow, and manage with a calmer library experience.</h1>
           <p className="subhead">
-            Browse the catalog, borrow books, track due dates, and manage the library from the admin dashboard.
+            Student access stays simple. Admin access stays separate. Choose the path that fits you.
           </p>
-          <div className="hero-actions">
-            <Link className="btn btn-primary" to="/register">Get Started</Link>
-            <Link className="btn btn-ghost" to="/login">Member Login</Link>
-          </div>
+          <button type="button" className="btn btn-primary landing-cta" onClick={() => setShowPicker(true)}>
+            Login / Register
+          </button>
         </div>
-        <div className="hero-card">
-          <div className="card-header">
-            <span>Phase 6 features</span>
-            <span className="pill">Live</span>
+
+        {showPicker && (
+          <div className="role-modal" role="dialog" aria-modal="true" aria-labelledby="role-picker-title">
+            <div className="role-modal-card">
+              <p className="eyebrow">Choose your path</p>
+              <h2 id="role-picker-title">Are you a student or admin?</h2>
+              <p className="subhead">Students can log in and register. Admins go straight to the admin login.</p>
+              <div className="role-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  onClick={() => navigate('/login?role=student')}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  onClick={() => navigate('/login?role=admin')}
+                >
+                  Admin
+                </button>
+                <button type="button" className="role-close" onClick={() => setShowPicker(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
-          <ul className="aside-list">
-            <li>Book catalog with search</li>
-            <li>Borrow & return system</li>
-            <li>Borrow history & overdue alerts</li>
-            <li>Admin dashboard & book CRUD</li>
-          </ul>
-        </div>
+        )}
       </section>
     </div>
   );
