@@ -37,7 +37,6 @@ def list_books():
                 Book.title.ilike(pattern),
                 Book.author.ilike(pattern),
                 Book.genre.ilike(pattern),
-                Book.isbn.ilike(pattern),
             )
         )
     books = query.order_by(Book.title).all()
@@ -91,7 +90,6 @@ def create_book():
         title=title,
         author=author,
         genre=genre,
-        isbn=data.get('isbn'),
         quantity=quantity,
         available_quantity=available,
         description=data.get('description'),
@@ -102,7 +100,7 @@ def create_book():
         db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
-        return _error('Could not create book (duplicate ISBN?)', 500)
+        return _error('Could not create book', 500)
 
     return jsonify({'message': 'Book created', 'book': book_to_dict(book)}), 201
 
@@ -113,7 +111,7 @@ def update_book(book_id):
     book = Book.query.get_or_404(book_id)
     data = request.get_json() or {}
 
-    for field in ('title', 'author', 'genre', 'isbn', 'description', 'image'):
+    for field in ('title', 'author', 'genre', 'description', 'image'):
         if field in data:
             setattr(book, field, data[field])
     if 'quantity' in data:

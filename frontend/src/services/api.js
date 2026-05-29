@@ -23,13 +23,16 @@ export const getBorrows = () => api.get('/api/borrows');
 export const getMyBorrows = () => api.get('/api/borrows/mine');
 export const getOverdueBorrows = () => api.get('/api/borrows/overdue');
 export const getPendingReturns = () => api.get('/api/borrows/pending');
-export const borrowBook = (bookId) => api.post('/api/borrows', { book_id: bookId });
+export const borrowBook = (bookId, borrowDuration, borrowUnit) => api.post('/api/borrows', {
+  book_id: bookId,
+  borrow_duration: borrowDuration,
+  borrow_unit: borrowUnit,
+});
 export const returnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/return`);
 export const requestReturnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/return`);
 export const confirmReturn = (borrowId) => api.post(`/api/borrows/${borrowId}/confirm-return`);
 export const rejectReturn = (borrowId) => api.post(`/api/borrows/${borrowId}/reject-return`);
 
-export const verifyOtp = (code) => api.post('/api/auth/login/verify', { code });
 export const uploadBookImage = (file) => {
   const form = new FormData();
   form.append('image', file);

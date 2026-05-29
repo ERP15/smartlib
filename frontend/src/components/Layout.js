@@ -31,7 +31,7 @@ export default function Layout({ children }) {
                 <Link to="/admin">Admin</Link>
               ) : (
                 <>
-                  <Link to="/catalog">Catalog</Link>
+                  <Link to="/catalog">Books</Link>
                   <Link to="/my-loans">My Borrowed</Link>
                 </>
               )}

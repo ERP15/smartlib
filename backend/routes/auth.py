@@ -1,9 +1,5 @@
 import os
 import re
-import smtplib
-import random
-from datetime import datetime, timedelta
-from email.message import EmailMessage
 
 from flask import Blueprint, request, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,48 +12,10 @@ auth_bp = Blueprint('auth', __name__)
 
 EMAIL_PATTERN = re.compile(r'^[^@\s]+@iskolarngbayan\.pup\.edu\.ph$', re.IGNORECASE)
 STUDENT_ID_PATTERN = re.compile(r'^[A-Z0-9]{4}-[A-Z0-9]{5}-PQ-0$', re.IGNORECASE)
-OTP_EXPIRATION_MINUTES = 10
-OTP_LENGTH = 6
 
 
 def _error(message, status):
     return jsonify({'error': message, 'message': message}), status
-
-
-def _send_otp_email(recipient, otp_code):
-    server = Config.MAIL_SERVER
-    if not server:
-        print(f'[OTP] Send to {recipient}: {otp_code}')
-        return True
-
-    msg = EmailMessage()
-    msg['Subject'] = 'SmartLib login verification code'
-    msg['From'] = Config.MAIL_USERNAME or 'noreply@smartlib.local'
-    msg['To'] = recipient
-    msg.set_content(
-        f'Your SmartLib verification code is: {otp_code}\n\n'
-        'Enter this code in the app to complete login. It expires in 10 minutes.'
-    )
-
-    try:
-        if Config.MAIL_USE_SSL:
-            smtp = smtplib.SMTP_SSL(server, Config.MAIL_PORT)
-        else:
-            smtp = smtplib.SMTP(server, Config.MAIL_PORT)
-        if Config.MAIL_USE_TLS and not Config.MAIL_USE_SSL:
-            smtp.starttls()
-        if Config.MAIL_USERNAME and Config.MAIL_PASSWORD:
-            smtp.login(Config.MAIL_USERNAME, Config.MAIL_PASSWORD)
-        smtp.send_message(msg)
-        smtp.quit()
-        return True
-    except Exception as exc:
-        print(f'[OTP] Email send failed: {exc}')
-        return False
-
-
-def _generate_otp():
-    return ''.join(str(random.randint(0, 9)) for _ in range(OTP_LENGTH))
 
 
 @auth_bp.route('/register', methods=['POST'])
@@ -134,61 +92,8 @@ def login():
     if not bcrypt.check_password_hash(user.password, password):
         return _error('Invalid credentials', 401)
 
-    otp_code = _generate_otp()
-    session['pending_user_id'] = user.id
-    session['pending_otp_code'] = otp_code
-    session['pending_otp_expires_at'] = (datetime.utcnow() + timedelta(minutes=OTP_EXPIRATION_MINUTES)).isoformat()
-
-    sent = _send_otp_email(user.email, otp_code)
-    message = 'OTP sent to your registered school email.'
-    if not sent:
-        message = 'OTP could not be emailed; check server logs or configure SMTP.'
-
-    return jsonify({
-        'message': message,
-        'otp_required': True,
-    }), 200
-
-
-@auth_bp.route('/login/verify', methods=['POST'])
-def verify_otp():
-    data = request.get_json() or {}
-    code = (data.get('code') or '').strip()
-
-    pending_user_id = session.get('pending_user_id')
-    pending_code = session.get('pending_otp_code')
-    expires_at = session.get('pending_otp_expires_at')
-
-    if not all([pending_user_id, pending_code, expires_at]):
-        return _error('OTP verification session expired', 401)
-
-    if not code:
-        return _error('OTP code is required', 400)
-
-    try:
-        expires_at_dt = datetime.fromisoformat(expires_at)
-    except ValueError:
-        return _error('OTP validation failed', 400)
-
-    if datetime.utcnow() > expires_at_dt:
-        session.pop('pending_user_id', None)
-        session.pop('pending_otp_code', None)
-        session.pop('pending_otp_expires_at', None)
-        return _error('OTP expired', 401)
-
-    if code != pending_code:
-        return _error('Invalid OTP code', 401)
-
-    user = User.query.get(pending_user_id)
-    if not user:
-        session.clear()
-        return _error('Unable to complete login', 401)
-
     session['user_id'] = user.id
     session['role'] = user.role
-    session.pop('pending_user_id', None)
-    session.pop('pending_otp_code', None)
-    session.pop('pending_otp_expires_at', None)
 
     user_payload = {
         'id': user.id,
@@ -198,7 +103,7 @@ def verify_otp():
     }
 
     return jsonify({
-        'message': 'OTP verified, logged in',
+        'message': 'Logged in',
         'access_token': f'session-{user.id}',
         'user': user_payload,
     }), 200

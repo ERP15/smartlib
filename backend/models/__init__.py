@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, time
 
 from ..extensions import db
 
@@ -28,7 +28,6 @@ class Book(db.Model):
     title = db.Column(db.String(255), nullable=False)
     author = db.Column(db.String(100), nullable=False)
     genre = db.Column(db.String(50), nullable=False)
-    isbn = db.Column(db.String(20), unique=True)
     quantity = db.Column(db.Integer, default=1)
     available_quantity = db.Column(db.Integer, default=1)
     description = db.Column(db.Text)
@@ -49,10 +48,9 @@ class BorrowRecord(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     book_id = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
     borrow_date = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-    due_date = db.Column(db.Date, nullable=False)
-    return_request_date = db.Column(db.Date, nullable=True)
-    actual_return_date = db.Column(db.Date, nullable=True)
-    return_date = db.Column(db.Date, nullable=True)
+    due_date = db.Column(db.DateTime, nullable=False)
+    return_request_date = db.Column(db.DateTime, nullable=True)
+    actual_return_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default='borrowed', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     updated_at = db.Column(
@@ -65,6 +63,9 @@ class BorrowRecord(db.Model):
     book = db.relationship('Book', back_populates='borrows')
 
     def is_overdue(self):
-        if self.status == 'returned' or self.actual_return_date or self.return_date:
+        if self.status == 'returned' or self.actual_return_date:
             return False
-        return self.due_date < date.today()
+        due_date = self.due_date
+        if isinstance(due_date, date) and not isinstance(due_date, datetime):
+            due_date = datetime.combine(due_date, time.min)
+        return due_date < datetime.utcnow()

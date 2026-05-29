@@ -36,22 +36,7 @@ def _apply_schema_upgrades(app):
         return
 
     schema_name = app.config.get('DB_NAME') or app.config['SQLALCHEMY_DATABASE_URI'].rsplit('/', 1)[-1]
-    upgrades = [
-        (
-            "return_request_date",
-            "DATE",
-        ),
-        (
-            "actual_return_date",
-            "DATE",
-        ),
-        (
-            "return_date",
-            "DATE",
-        ),
-    ]
-
-    for column_name, column_type in upgrades:
+    for column_name in ('return_request_date', 'actual_return_date', 'due_date'):
         exists = db.session.execute(
             text(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
@@ -62,7 +47,34 @@ def _apply_schema_upgrades(app):
         ).scalar()
         if not exists:
             db.session.execute(
-                text(f"ALTER TABLE borrow_records ADD COLUMN {column_name} {column_type}"),
+                text(f"ALTER TABLE borrow_records ADD COLUMN {column_name} DATETIME"),
+            )
+
+    db.session.execute(
+        text(
+            "ALTER TABLE borrow_records "
+            "MODIFY COLUMN due_date DATETIME NOT NULL, "
+            "MODIFY COLUMN return_request_date DATETIME NULL, "
+            "MODIFY COLUMN actual_return_date DATETIME NULL"
+        )
+    )
+
+    drop_columns = [
+        ('books', 'isbn'),
+        ('borrow_records', 'return_date'),
+    ]
+    for table_name, column_name in drop_columns:
+        exists = db.session.execute(
+            text(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table "
+                "AND COLUMN_NAME = :column"
+            ),
+            {'schema': schema_name, 'table': table_name, 'column': column_name},
+        ).scalar()
+        if exists:
+            db.session.execute(
+                text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"),
             )
 
     db.session.execute(

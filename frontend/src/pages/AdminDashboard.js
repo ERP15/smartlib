@@ -8,20 +8,30 @@ import {
   getBorrows,
   getOverdueBorrows,
   getPendingReturns,
-  returnBook,
   confirmReturn,
   rejectReturn,
+  uploadBookImage,
 } from '../services/api';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const emptyBook = {
   title: '',
   author: '',
-  genre: '',
-  isbn: '',
   quantity: 1,
   available_quantity: 1,
   description: '',
+  image: '',
 };
+
+function resolveImageUrl(image) {
+  if (!image) return null;
+  return image.startsWith('/') ? `${API_BASE_URL}${image}` : image;
+}
+
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString() : '—';
+}
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState('overview');
@@ -32,6 +42,7 @@ export default function AdminDashboard() {
   const [books, setBooks] = useState([]);
   const [borrows, setBorrows] = useState([]);
   const [bookForm, setBookForm] = useState(emptyBook);
+  const [bookImageFile, setBookImageFile] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState(null);
@@ -81,14 +92,20 @@ export default function AdminDashboard() {
     setError(null);
     setMessage(null);
     try {
+      const payload = { ...bookForm };
+      if (bookImageFile) {
+        const imageRes = await uploadBookImage(bookImageFile);
+        payload.image = imageRes.data.image;
+      }
       if (editingId) {
-        await updateBook(editingId, bookForm);
+        await updateBook(editingId, payload);
         setMessage('Book updated.');
       } else {
-        await createBook(bookForm);
+        await createBook(payload);
         setMessage('Book created.');
       }
       setBookForm(emptyBook);
+      setBookImageFile(null);
       setEditingId(null);
       await loadAll();
     } catch (err) {
@@ -102,11 +119,12 @@ export default function AdminDashboard() {
       title: book.title,
       author: book.author,
       genre: book.genre,
-      isbn: book.isbn || '',
       quantity: book.quantity,
       available_quantity: book.available_quantity,
       description: book.description || '',
+      image: book.image || '',
     });
+    setBookImageFile(null);
     setTab('books');
   };
 
@@ -118,16 +136,6 @@ export default function AdminDashboard() {
       await loadAll();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not delete book');
-    }
-  };
-
-  const handleReturn = async (borrowId) => {
-    try {
-      await returnBook(borrowId);
-      setMessage('Loan marked as returned.');
-      await loadAll();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Could not return');
     }
   };
 
@@ -245,7 +253,7 @@ export default function AdminDashboard() {
                     <td>{b.user_name}</td>
                     <td>{b.book_title}</td>
                     <td><span className={`status ${b.status === 'overdue' ? 'danger' : ''}`}>{b.status}</span></td>
-                    <td>{b.due_date}</td>
+                    <td>{formatDateTime(b.due_date)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -266,11 +274,8 @@ export default function AdminDashboard() {
                   <li key={b.id}>
                     <div>
                       <p className="book-title">{b.book_title}</p>
-                      <p className="book-meta">{b.user_name} · due {b.due_date}</p>
+                      <p className="book-meta">{b.user_name} · due {formatDateTime(b.due_date)}</p>
                     </div>
-                    <button type="button" className="btn btn-primary btn-small" onClick={() => handleReturn(b.id)}>
-                      Return
-                    </button>
                   </li>
                 ))}
               </ul>
@@ -297,9 +302,17 @@ export default function AdminDashboard() {
                 <input className="input" required value={bookForm.genre} onChange={(e) => setBookForm({ ...bookForm, genre: e.target.value })} />
               </label>
               <label className="field">
-                <span>ISBN</span>
-                <input className="input" value={bookForm.isbn} onChange={(e) => setBookForm({ ...bookForm, isbn: e.target.value })} />
+                <span>Cover image</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg"
+                  className="input"
+                  onChange={(e) => setBookImageFile(e.target.files?.[0] || null)}
+                />
               </label>
+              {bookForm.image && !bookImageFile && resolveImageUrl(bookForm.image) && (
+                <img className="book-cover book-cover-preview" src={resolveImageUrl(bookForm.image)} alt={bookForm.title || 'Book cover'} />
+              )}
               <div className="form-row">
                 <label className="field">
                   <span>Quantity</span>
@@ -332,6 +345,7 @@ export default function AdminDashboard() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Cover</th>
                   <th>Title</th>
                   <th>Author</th>
                   <th>Avail.</th>
@@ -341,6 +355,13 @@ export default function AdminDashboard() {
               <tbody>
                 {books.map((book) => (
                   <tr key={book.id}>
+                    <td>
+                      {resolveImageUrl(book.image) ? (
+                        <img className="book-thumb" src={resolveImageUrl(book.image)} alt={book.title} />
+                      ) : (
+                        <div className="book-thumb book-thumb-placeholder">No image</div>
+                      )}
+                    </td>
                     <td>{book.title}</td>
                     <td>{book.author}</td>
                     <td>{book.available_quantity}/{book.quantity}</td>
@@ -366,7 +387,6 @@ export default function AdminDashboard() {
                 <th>Book</th>
                 <th>Due</th>
                 <th>Status</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -374,13 +394,8 @@ export default function AdminDashboard() {
                 <tr key={b.id}>
                   <td>{b.user_name}<br /><span className="book-meta">{b.user_email}</span></td>
                   <td>{b.book_title}</td>
-                  <td>{b.due_date}</td>
+                    <td>{formatDateTime(b.due_date)}</td>
                   <td><span className={`status ${b.status === 'overdue' ? 'danger' : ''}`}>{b.status}</span></td>
-                  <td>
-                    {b.status !== 'returned' && (
-                      <button type="button" className="btn btn-primary btn-small" onClick={() => handleReturn(b.id)}>Return</button>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -411,7 +426,7 @@ export default function AdminDashboard() {
                   <tr key={b.id}>
                     <td>{b.user_name}<br /><span className="book-meta">{b.user_email}</span></td>
                     <td>{b.book_title}</td>
-                    <td>{b.return_request_date ? new Date(b.return_request_date).toLocaleDateString() : '—'}</td>
+                    <td>{formatDateTime(b.return_request_date)}</td>
                     <td className="table-actions">
                       <button type="button" className="btn btn-primary btn-small" onClick={() => handleConfirmReturn(b.id)}>
                         Confirm
@@ -452,10 +467,8 @@ export default function AdminDashboard() {
                   <tr key={b.id}>
                     <td>{b.user_name} ({b.student_id})</td>
                     <td>{b.book_title}</td>
-                    <td>{b.due_date}</td>
-                    <td>
-                      <button type="button" className="btn btn-primary btn-small" onClick={() => handleReturn(b.id)}>Return</button>
-                    </td>
+                    <td>{formatDateTime(b.due_date)}</td>
+                    <td className="muted">Confirm or reject in Pending</td>
                   </tr>
                 ))}
               </tbody>

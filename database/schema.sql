@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS books (
     title VARCHAR(255) NOT NULL,
     author VARCHAR(100) NOT NULL,
     genre VARCHAR(50) NOT NULL,
-    isbn VARCHAR(20) UNIQUE,
     quantity INT NOT NULL DEFAULT 1,
     available_quantity INT NOT NULL DEFAULT 1,
     description TEXT,
@@ -40,8 +39,7 @@ CREATE TABLE IF NOT EXISTS books (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_title (title),
     INDEX idx_author (author),
-    INDEX idx_genre (genre),
-    INDEX idx_isbn (isbn)
+    INDEX idx_genre (genre)
 );
 
 -- ============================================
@@ -52,10 +50,9 @@ CREATE TABLE IF NOT EXISTS borrow_records (
     user_id INT NOT NULL,
     book_id INT NOT NULL,
     borrow_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    due_date DATE NOT NULL,
-    return_request_date DATE,
-    actual_return_date DATE,
-    return_date DATE,
+    due_date DATETIME NOT NULL,
+    return_request_date DATETIME,
+    actual_return_date DATETIME,
     status ENUM('borrowed', 'returned', 'overdue', 'pending_return') DEFAULT 'borrowed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

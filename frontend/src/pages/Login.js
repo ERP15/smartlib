@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { login, verifyOtp } from '../services/api';
+import { login } from '../services/api';
 import { setUser, homePathForRole } from '../utils/auth';
 
 export default function Login() {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpMode, setOtpMode] = useState(false);
-  const [otpMessage, setOtpMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const role = searchParams.get('role') === 'admin' ? 'admin' : 'student';
@@ -19,22 +17,7 @@ export default function Login() {
     setError(null);
 
     try {
-      if (otpMode) {
-        const res = await verifyOtp(otp);
-        const { access_token, user } = res.data;
-        localStorage.setItem('access_token', access_token);
-        setUser(user);
-        navigate(homePathForRole(user.role));
-        return;
-      }
-
       const res = await login({ email, password });
-      if (res.data.otp_required) {
-        setOtpMode(true);
-        setOtpMessage(res.data.message || 'Enter the OTP sent to your email.');
-        return;
-      }
-
       const { access_token, user } = res.data;
       localStorage.setItem('access_token', access_token);
       setUser(user);
@@ -57,47 +40,38 @@ export default function Login() {
           </p>
         </div>
         <form onSubmit={handleSubmit} className="form">
-          {!otpMode && (
-            <>
-              <label className="field">
-                <span>Email address</span>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="input"
-                />
-              </label>
-              <label className="field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="password"
-                  className="input"
-                />
-              </label>
-            </>
-          )}
-          {otpMode && (
-            <>
-              <p className="notice">{otpMessage}</p>
-              <label className="field">
-                <span>One-time password</span>
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter OTP"
-                  className="input"
-                />
-              </label>
-            </>
-          )}
+          <label className="field">
+            <span>Email address</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="input"
+            />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <div className="password-field">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="password"
+                className="input"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
+          </label>
           {error && <div className="alert">{error}</div>}
           <button type="submit" className="btn btn-primary btn-block">
-            {otpMode ? 'Verify OTP' : 'Login'}
+            Login
           </button>
         </form>
         <p className="auth-footer">

@@ -1,10 +1,9 @@
-"""Initialize MySQL database for SmartLib (XAMPP).
+"""Initialize the SmartLib database.
 
-Run with XAMPP MySQL started:
+Run:
   py -3.12 backend/init_db.py
 
-Or import schema manually in phpMyAdmin / mysql CLI:
-  mysql -u root < database/schema.sql
+This script expects MySQL to be available using the DB_* settings in .env.
 """
 import sys
 from pathlib import Path

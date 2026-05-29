@@ -6,8 +6,8 @@ from pathlib import Path
 # Ensure project root is on sys.path so 'backend' imports work
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Use a lightweight SQLite DB for tests
-os.environ['DATABASE_URL'] = 'sqlite:///dev.db'
+# Use the configured MySQL database for tests
+os.environ.pop('DATABASE_URL', None)
 os.environ['FLASK_ENV'] = 'development'
 # Reduce bcrypt rounds for speed in tests
 os.environ['BCRYPT_LOG_ROUNDS'] = '4'
@@ -43,12 +43,12 @@ def run():
             'student_id': 'ADM1',
             'name': 'Admin',
             'email': 'admin@example.com',
-            'password': 'pass',
+            'password': 'Passw0rd!',
             'role': 'admin',
         })
         print('register admin ->', pretty(r))
 
-        r = admin_client.post('/api/auth/login', json={'email': 'admin@example.com', 'password': 'pass'})
+        r = admin_client.post('/api/auth/login', json={'email': 'admin@example.com', 'password': 'Passw0rd!'})
         print('login admin ->', pretty(r))
 
         # Create a book as admin
@@ -64,15 +64,15 @@ def run():
 
         # Register and login student
         r = student_client.post('/api/auth/register', json={
-            'student_id': 'STU1',
+            'student_id': 'ABCD-ABCDE-PQ-0',
             'name': 'Student One',
-            'email': 'stu1@example.com',
-            'password': 'pass',
+            'email': 'stu1@iskolarngbayan.pup.edu.ph',
+            'password': 'Passw0rd!',
             'role': 'student',
         })
         print('register student ->', pretty(r))
 
-        r = student_client.post('/api/auth/login', json={'email': 'stu1@example.com', 'password': 'pass'})
+        r = student_client.post('/api/auth/login', json={'email': 'stu1@iskolarngbayan.pup.edu.ph', 'password': 'Passw0rd!'})
         print('login student ->', pretty(r))
 
         # Borrow the book

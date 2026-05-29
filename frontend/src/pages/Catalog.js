@@ -2,10 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { getBooks, borrowBook } from '../services/api';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const DEFAULT_BORROW_DAYS = 14;
+
+function resolveImageUrl(image) {
+  if (!image) return null;
+  return image.startsWith('/') ? `${API_BASE_URL}${image}` : image;
+}
 
 export default function Catalog() {
   const [books, setBooks] = useState([]);
   const [query, setQuery] = useState('');
+  const [borrowPrefs, setBorrowPrefs] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -36,7 +43,8 @@ export default function Catalog() {
     setMessage(null);
     setError(null);
     try {
-      await borrowBook(bookId);
+      const selection = borrowPrefs[bookId] || { amount: DEFAULT_BORROW_DAYS, unit: 'days' };
+      await borrowBook(bookId, selection.amount, selection.unit);
       setMessage('Book borrowed successfully!');
       loadBooks(query.trim());
     } catch (err) {
@@ -50,7 +58,7 @@ export default function Catalog() {
         <div>
           <p className="eyebrow">Books</p>
           <h1>Browse Books</h1>
-          <p className="subhead">Search by title, author, genre, or ISBN.</p>
+          <p className="subhead">Search by title, author, or genre.</p>
         </div>
         <form className="search-bar" onSubmit={handleSearch}>
           <input
@@ -74,12 +82,16 @@ export default function Catalog() {
         <div className="book-grid">
           {books.map((book) => (
             <article key={book.id} className="book-card">
-              {book.image && (
+              {resolveImageUrl(book.image) ? (
                 <img
                   className="book-cover"
-                  src={book.image.startsWith('/') ? `${API_BASE_URL}${book.image}` : book.image}
+                  src={resolveImageUrl(book.image)}
                   alt={book.title}
                 />
+              ) : (
+                <div className="book-cover book-cover-placeholder">
+                  <span>{book.title.slice(0, 1).toUpperCase()}</span>
+                </div>
               )}
               <div className="book-card-top">
                 <span className="pill">{book.genre}</span>
@@ -89,8 +101,43 @@ export default function Catalog() {
               </div>
               <h3>{book.title}</h3>
               <p className="book-meta">{book.author}</p>
-              {book.isbn && <p className="book-meta">ISBN {book.isbn}</p>}
               {book.description && <p className="book-desc">{book.description}</p>}
+              <div className="borrow-controls">
+                <label className="field field-inline">
+                  <span>Borrow for</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="720"
+                    className="input"
+                    value={(borrowPrefs[book.id]?.amount) || DEFAULT_BORROW_DAYS}
+                    onChange={(e) => setBorrowPrefs({
+                      ...borrowPrefs,
+                      [book.id]: {
+                        amount: Number(e.target.value),
+                        unit: borrowPrefs[book.id]?.unit || 'days',
+                      },
+                    })}
+                  />
+                </label>
+                <label className="field field-inline">
+                  <span>&nbsp;</span>
+                  <select
+                    className="input"
+                    value={borrowPrefs[book.id]?.unit || 'days'}
+                    onChange={(e) => setBorrowPrefs({
+                      ...borrowPrefs,
+                      [book.id]: {
+                        amount: borrowPrefs[book.id]?.amount || DEFAULT_BORROW_DAYS,
+                        unit: e.target.value,
+                      },
+                    })}
+                  >
+                    <option value="days">days</option>
+                    <option value="hours">hours</option>
+                  </select>
+                </label>
+              </div>
               <button
                 type="button"
                 className="btn btn-primary btn-block"

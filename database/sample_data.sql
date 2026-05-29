@@ -16,23 +16,23 @@ INSERT INTO users (student_id, name, email, password, role) VALUES
 -- ============================================
 -- INSERT SAMPLE BOOKS
 -- ============================================
-INSERT INTO books (title, author, genre, isbn, quantity, available_quantity, description) VALUES
-('To Kill a Mockingbird', 'Harper Lee', 'Fiction', '978-0-06-112008-4', 5, 3, 'A gripping tale of racial injustice and childhood innocence'),
-('1984', 'George Orwell', 'Dystopian', '978-0-451-52493-2', 4, 2, 'A dark future society under totalitarian rule'),
-('The Great Gatsby', 'F. Scott Fitzgerald', 'Fiction', '978-0-7432-7356-5', 6, 4, 'A classic American novel set in the Jazz Age'),
-('Pride and Prejudice', 'Jane Austen', 'Romance', '978-0-14-143951-8', 3, 2, 'A witty exploration of love and marriage'),
-('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', '978-0-316-76948-0', 4, 3, 'A young man\'s journey through New York City'),
-('Python Programming', 'Mark Lutz', 'Technical', '978-1449355739', 2, 2, 'Comprehensive guide to Python'),
-('Clean Code', 'Robert Martin', 'Technical', '978-0132350884', 3, 1, 'A guide to writing better code');
+INSERT INTO books (title, author, genre, quantity, available_quantity, description) VALUES
+('To Kill a Mockingbird', 'Harper Lee', 'Fiction', 5, 3, 'A gripping tale of racial injustice and childhood innocence'),
+('1984', 'George Orwell', 'Dystopian', 4, 2, 'A dark future society under totalitarian rule'),
+('The Great Gatsby', 'F. Scott Fitzgerald', 'Fiction', 6, 4, 'A classic American novel set in the Jazz Age'),
+('Pride and Prejudice', 'Jane Austen', 'Romance', 3, 2, 'A witty exploration of love and marriage'),
+('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', 4, 3, 'A young man\'s journey through New York City'),
+('Python Programming', 'Mark Lutz', 'Technical', 2, 2, 'Comprehensive guide to Python'),
+('Clean Code', 'Robert Martin', 'Technical', 3, 1, 'A guide to writing better code');
 
 -- ============================================
 -- INSERT SAMPLE BORROW RECORDS
 -- ============================================
-INSERT INTO borrow_records (user_id, book_id, due_date, return_date, status) VALUES
-(1, 1, '2026-06-20', NULL, 'borrowed'),
-(2, 2, '2026-06-10', NULL, 'overdue'),
-(3, 3, '2026-05-25', '2026-05-24', 'returned'),
-(1, 4, '2026-06-15', NULL, 'borrowed');
+INSERT INTO borrow_records (user_id, book_id, due_date, actual_return_date, status) VALUES
+(1, 1, '2026-06-20 09:00:00', NULL, 'borrowed'),
+(2, 2, '2026-06-10 14:30:00', NULL, 'overdue'),
+(3, 3, '2026-05-25 16:00:00', '2026-05-24 10:15:00', 'returned'),
+(1, 4, '2026-06-15 11:45:00', NULL, 'borrowed');
 
 -- ============================================
 -- INSERT SAMPLE RECOMMENDATIONS

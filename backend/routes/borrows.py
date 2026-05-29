@@ -1,4 +1,4 @@
-from datetime import date, timedelta, datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, request, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,6 +12,9 @@ from ..utils.auth import login_required, staff_required, get_current_user
 borrows_bp = Blueprint('borrows', __name__)
 
 BORROW_DAYS = 14
+MIN_BORROW_DAYS = 1
+MAX_BORROW_DAYS = 60
+MAX_BORROW_HOURS = 720
 
 
 def _error(message, status):
@@ -94,6 +97,21 @@ def borrow_book():
     if not book_id:
         return _error('book_id is required', 400)
 
+    borrow_duration = data.get('borrow_duration', BORROW_DAYS)
+    borrow_unit = (data.get('borrow_unit') or 'days').strip().lower()
+    try:
+        borrow_duration = int(borrow_duration)
+    except (TypeError, ValueError):
+        return _error('borrow_duration must be a number', 400)
+
+    if borrow_unit not in ('days', 'hours'):
+        return _error('borrow_unit must be days or hours', 400)
+
+    if borrow_unit == 'days' and not (MIN_BORROW_DAYS <= borrow_duration <= MAX_BORROW_DAYS):
+        return _error(f'borrow_duration must be between {MIN_BORROW_DAYS} and {MAX_BORROW_DAYS} days', 400)
+    if borrow_unit == 'hours' and not (1 <= borrow_duration <= MAX_BORROW_HOURS):
+        return _error(f'borrow_duration must be between 1 and {MAX_BORROW_HOURS} hours', 400)
+
     book = Book.query.get(book_id)
     if not book:
         return _error('Book not found', 404)
@@ -104,12 +122,12 @@ def borrow_book():
     active = BorrowRecord.query.filter(
         BorrowRecord.user_id == user.id,
         BorrowRecord.book_id == book.id,
-        BorrowRecord.status.in_(( 'borrowed', 'overdue', 'pending_return')),
+        BorrowRecord.status.in_(('borrowed', 'overdue', 'pending_return')),
     ).first()
     if active:
         return _error('You already have an active loan for this book', 409)
 
-    due = date.today() + timedelta(days=BORROW_DAYS)
+    due = datetime.utcnow() + timedelta(days=borrow_duration if borrow_unit == 'days' else 0, hours=borrow_duration if borrow_unit == 'hours' else 0)
     record = BorrowRecord(
         user_id=user.id,
         book_id=book.id,
@@ -141,13 +159,15 @@ def return_book(borrow_id):
     if record.user_id != user.id and role not in ('admin', 'librarian'):
         return _error('Not allowed to return this loan', 403)
 
-    if record.status == 'returned' or record.actual_return_date or record.return_date:
+    if record.status == 'returned' or record.actual_return_date:
         return _error('Already returned', 409)
 
     if role in ('admin', 'librarian'):
+        if record.status != 'pending_return':
+            return _error('Only pending return requests can be finalized', 409)
+
         book = Book.query.get(record.book_id)
-        record.actual_return_date = date.today()
-        record.return_date = date.today()
+        record.actual_return_date = datetime.utcnow()
         record.status = 'returned'
         if book:
             book.available_quantity = min(book.quantity, book.available_quantity + 1)
@@ -166,7 +186,7 @@ def return_book(borrow_id):
     if record.status == 'pending_return':
         return _error('Return request already submitted', 409)
 
-    record.return_request_date = date.today()
+    record.return_request_date = datetime.utcnow()
     record.status = 'pending_return'
 
     try:
@@ -189,8 +209,7 @@ def confirm_return(borrow_id):
         return _error('No pending return request to confirm', 409)
 
     book = Book.query.get(record.book_id)
-    record.actual_return_date = date.today()
-    record.return_date = date.today()
+    record.actual_return_date = datetime.utcnow()
     record.status = 'returned'
     if book:
         book.available_quantity = min(book.quantity, book.available_quantity + 1)
@@ -216,7 +235,7 @@ def reject_return(borrow_id):
 
     record.return_request_date = None
     record.actual_return_date = None
-    record.status = 'overdue' if record.due_date < date.today() else 'borrowed'
+    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'borrowed'
 
     try:
         db.session.commit()

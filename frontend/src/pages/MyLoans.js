@@ -8,6 +8,10 @@ function statusClass(status) {
   return 'warning';
 }
 
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString() : '—';
+}
+
 export default function MyLoans() {
   const [borrows, setBorrows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,12 +89,12 @@ export default function MyLoans() {
                         <br />
                         <span className="book-meta">{b.book_author}</span>
                       </td>
-                      <td>{b.due_date}</td>
+                      <td>{formatDateTime(b.due_date)}</td>
                       <td>
                         <span className={`status ${statusClass(b.status)}`}>{b.status}</span>
                         {b.status === 'pending_return' && b.return_request_date && (
                           <div className="muted" style={{ marginTop: '0.5rem' }}>
-                            Requested: {new Date(b.return_request_date).toLocaleDateString()}
+                            Requested: {formatDateTime(b.return_request_date)}
                           </div>
                         )}
                       </td>
@@ -103,7 +107,7 @@ export default function MyLoans() {
                             className="btn btn-primary btn-small"
                             onClick={() => handleReturn(b.id)}
                           >
-                            Return Book
+                            Request Return
                           </button>
                         )}
                       </td>
@@ -135,8 +139,8 @@ export default function MyLoans() {
                         <br />
                         <span className="book-meta">{b.book_author}</span>
                       </td>
-                      <td>{b.borrow_date?.slice(0, 10)}</td>
-                      <td>{b.return_date}</td>
+                      <td>{formatDateTime(b.borrow_date)}</td>
+                      <td>{formatDateTime(b.actual_return_date)}</td>
                     </tr>
                   ))}
                 </tbody>

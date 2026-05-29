@@ -462,6 +462,38 @@ a {
 	border-color: transparent;
 }
 
+.password-field {
+	display: flex;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.password-field .input {
+	flex: 1;
+}
+
+.password-toggle {
+	border: 1px solid #e1d7cc;
+	background: #fcfaf8;
+	border-radius: 12px;
+	min-width: 48px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	font-size: 1rem;
+}
+
+.borrow-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.borrow-controls .field {
+	gap: 6px;
+}
+
 .auth-footer {
 	margin-top: 18px;
 	color: var(--muted);
@@ -610,6 +642,56 @@ a {
 	box-shadow: var(--shadow);
 	display: grid;
 	gap: 10px;
+}
+
+.book-cover,
+.book-thumb,
+.book-cover-preview {
+	object-fit: cover;
+	background: linear-gradient(135deg, #f0e7dd, #fff8f1);
+	border: 1px solid #eadfd3;
+}
+
+.book-cover {
+	width: 100%;
+	aspect-ratio: 3 / 4;
+	border-radius: 16px;
+}
+
+.book-cover-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 2rem;
+	color: var(--ink);
+	min-height: 240px;
+}
+
+.book-cover-preview {
+	width: 140px;
+	height: 186px;
+	border-radius: 14px;
+	margin-top: 8px;
+}
+
+.book-thumb {
+	width: 56px;
+	height: 76px;
+	border-radius: 10px;
+}
+
+.book-thumb-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: var(--muted);
+}
+
+.field-inline {
+	gap: 6px;
 }
 
 .book-card h3 {
