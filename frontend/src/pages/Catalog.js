@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getBooks, borrowBook } from '../services/api';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 export default function Catalog() {
   const [books, setBooks] = useState([]);
   const [query, setQuery] = useState('');
@@ -46,8 +48,8 @@ export default function Catalog() {
     <div className="page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Library catalog</p>
-          <h1>Browse & borrow</h1>
+          <p className="eyebrow">Books</p>
+          <h1>Browse Books</h1>
           <p className="subhead">Search by title, author, genre, or ISBN.</p>
         </div>
         <form className="search-bar" onSubmit={handleSearch}>
@@ -72,6 +74,13 @@ export default function Catalog() {
         <div className="book-grid">
           {books.map((book) => (
             <article key={book.id} className="book-card">
+              {book.image && (
+                <img
+                  className="book-cover"
+                  src={book.image.startsWith('/') ? `${API_BASE_URL}${book.image}` : book.image}
+                  alt={book.title}
+                />
+              )}
               <div className="book-card-top">
                 <span className="pill">{book.genre}</span>
                 <span className={`status ${book.available_quantity < 1 ? 'danger' : ''}`}>

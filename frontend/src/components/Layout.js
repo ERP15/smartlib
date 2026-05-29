@@ -32,7 +32,7 @@ export default function Layout({ children }) {
               ) : (
                 <>
                   <Link to="/catalog">Catalog</Link>
-                  <Link to="/my-loans">My Loans</Link>
+                  <Link to="/my-loans">My Borrowed</Link>
                 </>
               )}
               <span className="nav-user">{user.name}</span>

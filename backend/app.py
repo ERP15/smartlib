@@ -1,7 +1,8 @@
 import sys
 from pathlib import Path
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
+from sqlalchemy import text
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
@@ -28,6 +29,50 @@ def _register_blueprint(app, module_path, attr, prefix):
             app.register_blueprint(bp, url_prefix=prefix)
         except Exception:
             pass
+
+
+def _apply_schema_upgrades(app):
+    if db.engine.dialect.name != 'mysql':
+        return
+
+    schema_name = app.config.get('DB_NAME') or app.config['SQLALCHEMY_DATABASE_URI'].rsplit('/', 1)[-1]
+    upgrades = [
+        (
+            "return_request_date",
+            "DATE",
+        ),
+        (
+            "actual_return_date",
+            "DATE",
+        ),
+        (
+            "return_date",
+            "DATE",
+        ),
+    ]
+
+    for column_name, column_type in upgrades:
+        exists = db.session.execute(
+            text(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'borrow_records' "
+                "AND COLUMN_NAME = :column"
+            ),
+            {'schema': schema_name, 'column': column_name},
+        ).scalar()
+        if not exists:
+            db.session.execute(
+                text(f"ALTER TABLE borrow_records ADD COLUMN {column_name} {column_type}"),
+            )
+
+    db.session.execute(
+        text(
+            "ALTER TABLE borrow_records "
+            "MODIFY COLUMN status ENUM('borrowed','returned','overdue','pending_return') "
+            "DEFAULT 'borrowed'"
+        )
+    )
+    db.session.commit()
 
 
 def create_app():
@@ -58,10 +103,15 @@ def create_app():
     app.register_blueprint(borrows_bp, url_prefix='/api/borrows')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
-    if app.config.get('AUTO_CREATE_DB'):
-        with app.app_context():
-            import backend.models  # noqa: F401
-            db.create_all()
+    with app.app_context():
+        import backend.models  # noqa: F401
+        db.create_all()
+        _apply_schema_upgrades(app)
+
+    @app.route('/uploads/book_images/<path:filename>')
+    def uploaded_book_image(filename):
+        uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
+        return send_from_directory(uploads_dir, filename)
 
     return app
 

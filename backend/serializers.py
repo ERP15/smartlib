@@ -21,6 +21,8 @@ def borrow_to_dict(record, include_user=False):
         'book_author': record.book.author if record.book else None,
         'borrow_date': record.borrow_date.isoformat() if record.borrow_date else None,
         'due_date': record.due_date.isoformat() if record.due_date else None,
+        'return_request_date': record.return_request_date.isoformat() if record.return_request_date else None,
+        'actual_return_date': record.actual_return_date.isoformat() if record.actual_return_date else None,
         'return_date': record.return_date.isoformat() if record.return_date else None,
         'status': record.status,
         'is_overdue': record.is_overdue(),

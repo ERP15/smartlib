@@ -14,8 +14,21 @@ function getClientError(studentId, email, password) {
     return 'Use an @iskolarngbayan.pup.edu.ph email address';
   }
 
-  if (![6, 8].includes(password.length)) {
-    return 'Password must be exactly 6 or 8 characters long';
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters long';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must include at least one uppercase letter';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'Password must include at least one lowercase letter';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Password must include at least one number';
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return 'Password must include at least one special character';
   }
 
   return null;
@@ -108,12 +121,13 @@ export default function Register() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
-              maxLength={8}
-              placeholder="6 or 8 characters"
+              minLength={8}
+              placeholder="At least 8 characters"
               className="input"
             />
-            <small className="field-hint">Password must be exactly 6 or 8 characters</small>
+            <small className="field-hint">
+              Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+            </small>
           </label>
           {error && <div className="alert">{error}</div>}
           {success && <div className="success">{success}</div>}

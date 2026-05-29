@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from flask import Blueprint, request, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
@@ -72,6 +72,20 @@ def overdue_borrows():
     }), 200
 
 
+@borrows_bp.route('/pending', methods=['GET'])
+@staff_required
+def pending_returns():
+    records = (
+        BorrowRecord.query
+        .filter(BorrowRecord.status == 'pending_return')
+        .order_by(BorrowRecord.return_request_date.desc())
+        .all()
+    )
+    return jsonify({
+        'borrows': [borrow_to_dict(r, include_user=True) for r in records],
+    }), 200
+
+
 @borrows_bp.route('', methods=['POST'])
 @login_required
 def borrow_book():
@@ -90,7 +104,7 @@ def borrow_book():
     active = BorrowRecord.query.filter(
         BorrowRecord.user_id == user.id,
         BorrowRecord.book_id == book.id,
-        BorrowRecord.status.in_(('borrowed', 'overdue')),
+        BorrowRecord.status.in_(( 'borrowed', 'overdue', 'pending_return')),
     ).first()
     if active:
         return _error('You already have an active loan for this book', 409)
@@ -127,10 +141,55 @@ def return_book(borrow_id):
     if record.user_id != user.id and role not in ('admin', 'librarian'):
         return _error('Not allowed to return this loan', 403)
 
-    if record.status == 'returned' or record.return_date:
+    if record.status == 'returned' or record.actual_return_date or record.return_date:
         return _error('Already returned', 409)
 
+    if role in ('admin', 'librarian'):
+        book = Book.query.get(record.book_id)
+        record.actual_return_date = date.today()
+        record.return_date = date.today()
+        record.status = 'returned'
+        if book:
+            book.available_quantity = min(book.quantity, book.available_quantity + 1)
+
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            return _error('Could not finalize return', 500)
+
+        return jsonify({
+            'message': 'Return finalized',
+            'borrow': borrow_to_dict(record),
+        }), 200
+
+    if record.status == 'pending_return':
+        return _error('Return request already submitted', 409)
+
+    record.return_request_date = date.today()
+    record.status = 'pending_return'
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return _error('Could not submit return request', 500)
+
+    return jsonify({
+        'message': 'Return request submitted',
+        'borrow': borrow_to_dict(record),
+    }), 200
+
+
+@borrows_bp.route('/<int:borrow_id>/confirm-return', methods=['POST'])
+@staff_required
+def confirm_return(borrow_id):
+    record = BorrowRecord.query.get_or_404(borrow_id)
+    if record.status != 'pending_return':
+        return _error('No pending return request to confirm', 409)
+
     book = Book.query.get(record.book_id)
+    record.actual_return_date = date.today()
     record.return_date = date.today()
     record.status = 'returned'
     if book:
@@ -140,9 +199,32 @@ def return_book(borrow_id):
         db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
-        return _error('Could not return book', 500)
+        return _error('Could not confirm return', 500)
 
     return jsonify({
-        'message': 'Book returned',
-        'borrow': borrow_to_dict(record),
+        'message': 'Return confirmed',
+        'borrow': borrow_to_dict(record, include_user=True),
+    }), 200
+
+
+@borrows_bp.route('/<int:borrow_id>/reject-return', methods=['POST'])
+@staff_required
+def reject_return(borrow_id):
+    record = BorrowRecord.query.get_or_404(borrow_id)
+    if record.status != 'pending_return':
+        return _error('No pending return request to reject', 409)
+
+    record.return_request_date = None
+    record.actual_return_date = None
+    record.status = 'overdue' if record.due_date < date.today() else 'borrowed'
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return _error('Could not reject return request', 500)
+
+    return jsonify({
+        'message': 'Return request rejected',
+        'borrow': borrow_to_dict(record, include_user=True),
     }), 200

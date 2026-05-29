@@ -50,6 +50,8 @@ class BorrowRecord(db.Model):
     book_id = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False)
     borrow_date = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     due_date = db.Column(db.Date, nullable=False)
+    return_request_date = db.Column(db.Date, nullable=True)
+    actual_return_date = db.Column(db.Date, nullable=True)
     return_date = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), default='borrowed', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
@@ -63,6 +65,6 @@ class BorrowRecord(db.Model):
     book = db.relationship('Book', back_populates='borrows')
 
     def is_overdue(self):
-        if self.status == 'returned' or self.return_date:
+        if self.status == 'returned' or self.actual_return_date or self.return_date:
             return False
         return self.due_date < date.today()

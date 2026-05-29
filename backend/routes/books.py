@@ -1,6 +1,9 @@
+import os
+from pathlib import Path
 from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.utils import secure_filename
 
 from ..extensions import db
 from ..models import Book
@@ -9,9 +12,17 @@ from ..utils.auth import login_required, staff_required
 
 books_bp = Blueprint('books', __name__)
 
+UPLOAD_FOLDER = Path(__file__).resolve().parent.parent / 'uploads' / 'book_images'
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+
 
 def _error(message, status):
     return jsonify({'error': message, 'message': message}), status
+
+
+def _allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
 @books_bp.route('', methods=['GET'])
@@ -38,6 +49,27 @@ def list_books():
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
     return jsonify({'book': book_to_dict(book)}), 200
+
+
+@books_bp.route('/upload-image', methods=['POST'])
+@staff_required
+def upload_book_image():
+    if 'image' not in request.files:
+        return _error('No image file provided', 400)
+
+    image = request.files['image']
+    if image.filename == '':
+        return _error('No image selected', 400)
+    if not _allowed_file(image.filename):
+        return _error('Allowed image formats are JPG, JPEG, PNG', 400)
+
+    ext = os.path.splitext(image.filename)[1].lower()
+    filename = secure_filename(f"{Path(image.filename).stem}-{os.urandom(8).hex()}{ext}")
+    path = UPLOAD_FOLDER / filename
+    image.save(path)
+
+    image_path = f'/uploads/book_images/{filename}'
+    return jsonify({'image': image_path}), 200
 
 
 @books_bp.route('', methods=['POST'])

@@ -7,7 +7,10 @@ import {
   deleteBook,
   getBorrows,
   getOverdueBorrows,
+  getPendingReturns,
   returnBook,
+  confirmReturn,
+  rejectReturn,
 } from '../services/api';
 
 const emptyBook = {
@@ -25,6 +28,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
   const [overdue, setOverdue] = useState([]);
+  const [pendingReturns, setPendingReturns] = useState([]);
   const [books, setBooks] = useState([]);
   const [borrows, setBorrows] = useState([]);
   const [bookForm, setBookForm] = useState(emptyBook);
@@ -51,11 +55,16 @@ export default function AdminDashboard() {
     setBorrows(res.data.borrows || []);
   };
 
+  const loadPendingReturns = async () => {
+    const res = await getPendingReturns();
+    setPendingReturns(res.data.borrows || []);
+  };
+
   const loadAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadDashboard(), loadBooks(), loadBorrows()]);
+      await Promise.all([loadDashboard(), loadBooks(), loadBorrows(), loadPendingReturns()]);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
@@ -122,6 +131,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleConfirmReturn = async (borrowId) => {
+    try {
+      await confirmReturn(borrowId);
+      setMessage('Return request confirmed.');
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not confirm return');
+    }
+  };
+
+  const handleRejectReturn = async (borrowId) => {
+    try {
+      await rejectReturn(borrowId);
+      setMessage('Return request rejected.');
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not reject return');
+    }
+  };
+
   const refreshOverdue = async () => {
     try {
       const res = await getOverdueBorrows();
@@ -169,8 +198,14 @@ export default function AdminDashboard() {
           </div>
           <div className="stat-card highlight">
             <span className="stat-number">{stats.overdue_count}</span>
-            <span className="stat-label">Overdue</span>
+            <span className="stat-label">Overdue borrowed books</span>
           </div>
+          {stats.pending_returns !== undefined && (
+            <div className="stat-card">
+              <span className="stat-number">{stats.pending_returns}</span>
+              <span className="stat-label">Pending return requests</span>
+            </div>
+          )}
           <div className="stat-card">
             <span className="stat-number">{stats.total_users}</span>
             <span className="stat-label">Registered users</span>
@@ -179,14 +214,14 @@ export default function AdminDashboard() {
       )}
 
       <div className="tabs">
-        {['overview', 'books', 'borrows', 'overdue'].map((t) => (
+        {['overview', 'books', 'borrows', 'pending', 'overdue'].map((t) => (
           <button
             key={t}
             type="button"
             className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => setTab(t)}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'pending' ? 'Pending' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
@@ -218,13 +253,13 @@ export default function AdminDashboard() {
           </section>
           <section className="panel">
             <div className="panel-head">
-              <h2>Overdue loans</h2>
+              <h2>Overdue borrowed books</h2>
               <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>
                 Refresh
               </button>
             </div>
             {overdue.length === 0 ? (
-              <p className="muted">No overdue loans.</p>
+              <p className="muted">No overdue borrowed books.</p>
             ) : (
               <ul className="book-list">
                 {overdue.map((b) => (
@@ -350,6 +385,46 @@ export default function AdminDashboard() {
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {tab === 'pending' && (
+        <section className="panel">
+          <div className="panel-head">
+            <h2>Pending return requests</h2>
+            <p className="subhead">Review student requests and confirm receipt or reject if there is an issue.</p>
+          </div>
+          {pendingReturns.length === 0 ? (
+            <p className="muted">No pending return requests.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Book</th>
+                  <th>Requested</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingReturns.map((b) => (
+                  <tr key={b.id}>
+                    <td>{b.user_name}<br /><span className="book-meta">{b.user_email}</span></td>
+                    <td>{b.book_title}</td>
+                    <td>{b.return_request_date ? new Date(b.return_request_date).toLocaleDateString() : '—'}</td>
+                    <td className="table-actions">
+                      <button type="button" className="btn btn-primary btn-small" onClick={() => handleConfirmReturn(b.id)}>
+                        Confirm
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-small" onClick={() => handleRejectReturn(b.id)}>
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
       )}
 

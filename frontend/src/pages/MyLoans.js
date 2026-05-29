@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { getMyBorrows, returnBook } from '../services/api';
+import { getMyBorrows, requestReturnBook } from '../services/api';
 
 function statusClass(status) {
   if (status === 'overdue') return 'danger';
   if (status === 'returned') return '';
+  if (status === 'pending_return') return 'warning';
   return 'warning';
 }
 
@@ -34,11 +35,11 @@ export default function MyLoans() {
     setMessage(null);
     setError(null);
     try {
-      await returnBook(id);
-      setMessage('Book returned successfully.');
+      await requestReturnBook(id);
+      setMessage('Return request submitted. Admin will confirm when the book is received.');
       load();
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not return book');
+      setError(err.response?.data?.error || 'Could not submit return request');
     }
   };
 
@@ -50,8 +51,8 @@ export default function MyLoans() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Your account</p>
-          <h1>Borrow history</h1>
-          <p className="subhead">Active loans, overdue items, and past returns.</p>
+          <h1>My Borrowed</h1>
+          <p className="subhead">My borrowed books, overdue items, and past returns.</p>
         </div>
       </div>
 
@@ -63,7 +64,7 @@ export default function MyLoans() {
       ) : (
         <>
           <section className="panel">
-            <h2>Active loans ({active.length})</h2>
+            <h2>My borrowed books ({active.length})</h2>
             {active.length === 0 ? (
               <p className="muted">No active loans.</p>
             ) : (
@@ -87,15 +88,24 @@ export default function MyLoans() {
                       <td>{b.due_date}</td>
                       <td>
                         <span className={`status ${statusClass(b.status)}`}>{b.status}</span>
+                        {b.status === 'pending_return' && b.return_request_date && (
+                          <div className="muted" style={{ marginTop: '0.5rem' }}>
+                            Requested: {new Date(b.return_request_date).toLocaleDateString()}
+                          </div>
+                        )}
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-small"
-                          onClick={() => handleReturn(b.id)}
-                        >
-                          Return
-                        </button>
+                        {b.status === 'pending_return' ? (
+                          <span className="muted">Pending admin confirmation</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={() => handleReturn(b.id)}
+                          >
+                            Return Book
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
