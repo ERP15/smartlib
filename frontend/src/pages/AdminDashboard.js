@@ -230,36 +230,66 @@ export default function AdminDashboard() {
       {stats && (
         <div className="stats-grid">
           <div className="stat-card">
-            <span className="stat-number">{stats.total_books}</span>
-            <span className="stat-label">Books in catalog</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="stat-number">{stats.total_books}</span>
+                <span className="stat-label">Total Books</span>
+              </div>
+              <span style={{ fontSize: '1.75rem' }}>📚</span>
+            </div>
           </div>
           <div className="stat-card">
-            <span className="stat-number">{stats.available_copies}</span>
-            <span className="stat-label">Copies available</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="stat-number">{stats.available_copies}</span>
+                <span className="stat-label">Copies Available</span>
+              </div>
+              <span style={{ fontSize: '1.75rem', color: 'var(--success)' }}>🟢</span>
+            </div>
           </div>
           <div className="stat-card">
-            <span className="stat-number">{stats.active_borrows}</span>
-            <span className="stat-label">Active loans</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="stat-number">{stats.active_borrows}</span>
+                <span className="stat-label">Active Loans</span>
+              </div>
+              <span style={{ fontSize: '1.75rem', color: 'var(--accent)' }}>📖</span>
+            </div>
           </div>
           <div className="stat-card highlight">
-            <span className="stat-number">{stats.overdue_count}</span>
-            <span className="stat-label">Overdue borrowed books</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="stat-number" style={{ color: 'var(--danger)' }}>{stats.overdue_count}</span>
+                <span className="stat-label">Overdue Borrowed</span>
+              </div>
+              <span style={{ fontSize: '1.75rem', color: 'var(--danger)' }}>🔴</span>
+            </div>
           </div>
           {stats.pending_returns !== undefined && (
             <div className="stat-card">
-              <span className="stat-number">{stats.pending_returns}</span>
-              <span className="stat-label">Pending return requests</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span className="stat-number" style={{ color: 'var(--warning)' }}>{stats.pending_returns}</span>
+                  <span className="stat-label">Pending Returns</span>
+                </div>
+                <span style={{ fontSize: '1.75rem', color: 'var(--warning)' }}>⏳</span>
+              </div>
             </div>
           )}
           <div className="stat-card">
-            <span className="stat-number">{stats.total_users}</span>
-            <span className="stat-label">Registered users</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="stat-number">{stats.total_users}</span>
+                <span className="stat-label">Registered Members</span>
+              </div>
+              <span style={{ fontSize: '1.75rem' }}>👥</span>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="tabs">
-          {['overview', 'books', 'borrows', 'pending', 'overdue', 'analytics', 'reports'].map((t) => (
+      <div className="tabs" style={{ marginBottom: '1.5rem' }}>
+        {['overview', 'books', 'borrows', 'pending', 'overdue', 'analytics', 'reports'].map((t) => (
           <button
             key={t}
             type="button"
@@ -273,46 +303,65 @@ export default function AdminDashboard() {
 
       {tab === 'overview' && (
         <div className="admin-grid">
-          <section className="panel">
-            <h2>Recent activity</h2>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Book</th>
-                  <th>Status</th>
-                  <th>Due</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((b) => (
-                  <tr key={b.id}>
-                    <td>{b.user_name}</td>
-                    <td>{b.book_title}</td>
-                    <td><span className={`status ${b.status === 'overdue' ? 'danger' : ''}`}>{b.status}</span></td>
-                    <td>{formatDateTime(b.due_date)}</td>
+          <section className="panel" style={{ flex: 1.5 }}>
+            <h2>Recent Activity Logs</h2>
+            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Book Title</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recent.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No recent activity.</td>
+                    </tr>
+                  ) : (
+                    recent.map((b) => (
+                      <tr key={b.id}>
+                        <td>
+                          <strong>{b.user_name}</strong>
+                          <div className="muted" style={{ fontSize: '0.75rem' }}>Student</div>
+                        </td>
+                        <td>{b.book_title}</td>
+                        <td>
+                          <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td>{formatDateTime(b.due_date)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
-          <section className="panel">
+
+          <section className="panel" style={{ flex: 1 }}>
             <div className="panel-head">
-              <h2>Overdue borrowed books</h2>
+              <h2>Overdue Alert</h2>
               <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>
-                Refresh
+                Refresh Check
               </button>
             </div>
             {overdue.length === 0 ? (
-              <p className="muted">No overdue borrowed books.</p>
+              <p className="muted" style={{ padding: '1rem 0' }}>No overdue borrowed books detected.</p>
             ) : (
               <ul className="book-list">
-                {overdue.map((b) => (
-                  <li key={b.id}>
+                {overdue.slice(0, 5).map((b) => (
+                  <li key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <p className="book-title">{b.book_title}</p>
-                      <p className="book-meta">{b.user_name} · due {formatDateTime(b.due_date)}</p>
+                      <p className="book-title" style={{ margin: 0, fontSize: '0.95rem' }}>{b.book_title}</p>
+                      <p className="subhead" style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                        {b.user_name} · due {formatDateTime(b.due_date)}
+                      </p>
                     </div>
+                    <span className="status danger" style={{ fontSize: '0.7rem' }}>Overdue</span>
                   </li>
                 ))}
               </ul>
@@ -323,11 +372,11 @@ export default function AdminDashboard() {
 
       {tab === 'books' && (
         <div className="admin-grid">
-          <section className="panel">
-            <h2>{editingId ? 'Edit book' : 'Add book'}</h2>
-            <form className="form" onSubmit={handleBookSubmit}>
+          <section className="panel" style={{ flex: 1 }}>
+            <h2>{editingId ? '✏️ Edit Collection Title' : '📚 Add Book to Catalog'}</h2>
+            <form className="form" onSubmit={handleBookSubmit} style={{ marginTop: '1.25rem' }}>
               <label className="field">
-                <span>Title</span>
+                <span>Book Title</span>
                 <input className="input" required value={bookForm.title} onChange={(e) => setBookForm({ ...bookForm, title: e.target.value })} />
               </label>
               <label className="field">
@@ -339,7 +388,7 @@ export default function AdminDashboard() {
                 <input className="input" required value={bookForm.genre} onChange={(e) => setBookForm({ ...bookForm, genre: e.target.value })} />
               </label>
               <label className="field">
-                <span>Cover image</span>
+                <span>Cover Image File</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/jpg"
@@ -348,24 +397,26 @@ export default function AdminDashboard() {
                 />
               </label>
               {bookForm.image && !bookImageFile && resolveImageUrl(bookForm.image) && (
-                <img className="book-cover book-cover-preview" src={resolveImageUrl(bookForm.image)} alt={bookForm.title || 'Book cover'} />
+                <div style={{ margin: '0.5rem 0' }}>
+                  <img className="book-cover-preview" src={resolveImageUrl(bookForm.image)} alt={bookForm.title || 'Book cover'} />
+                </div>
               )}
               <div className="form-row">
                 <label className="field">
-                  <span>Quantity</span>
+                  <span>Total Copies</span>
                   <input type="number" min="0" className="input" value={bookForm.quantity} onChange={(e) => setBookForm({ ...bookForm, quantity: Number(e.target.value) })} />
                 </label>
                 <label className="field">
-                  <span>Available</span>
+                  <span>Available Copies</span>
                   <input type="number" min="0" className="input" value={bookForm.available_quantity} onChange={(e) => setBookForm({ ...bookForm, available_quantity: Number(e.target.value) })} />
                 </label>
               </div>
               <label className="field">
-                <span>Description</span>
+                <span>Description Summary</span>
                 <textarea className="input" rows={3} value={bookForm.description} onChange={(e) => setBookForm({ ...bookForm, description: e.target.value })} />
               </label>
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary">{editingId ? 'Update' : 'Create'}</button>
+              <div className="hero-actions" style={{ justifyContent: 'flex-start', marginTop: '1.25rem' }}>
+                <button type="submit" className="btn btn-primary">{editingId ? 'Save Changes' : 'Create Record'}</button>
                 {editingId && (
                   <button type="button" className="btn btn-ghost" onClick={() => { setEditingId(null); setBookForm(emptyBook); }}>
                     Cancel
@@ -374,108 +425,145 @@ export default function AdminDashboard() {
               </div>
             </form>
           </section>
-          <section className="panel">
-            <form className="search-bar" onSubmit={(e) => { e.preventDefault(); loadBooks(search); }}>
-              <input className="input" placeholder="Search catalog..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              <button type="submit" className="btn btn-primary btn-small">Search</button>
-            </form>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Cover</th>
-                  <th>Title</th>
-                  <th>Author</th>
-                  <th>Avail.</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {books.map((book) => (
-                  <tr key={book.id}>
-                    <td>
-                      {resolveImageUrl(book.image) ? (
-                        <img className="book-thumb" src={resolveImageUrl(book.image)} alt={book.title} />
-                      ) : (
-                        <div className="book-thumb book-thumb-placeholder">No image</div>
-                      )}
-                    </td>
-                    <td>{book.title}</td>
-                    <td>{book.author}</td>
-                    <td>{book.available_quantity}/{book.quantity}</td>
-                    <td className="table-actions">
-                      <button type="button" className="btn btn-ghost btn-small" onClick={() => startEdit(book)}>Edit</button>
-                      <button type="button" className="btn btn-ghost btn-small" onClick={() => handleDelete(book.id)}>Delete</button>
-                    </td>
+
+          <section className="panel" style={{ flex: 1.5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+              <h2>Manage Database Inventory</h2>
+              <form className="search-bar" onSubmit={(e) => { e.preventDefault(); loadBooks(search); }} style={{ width: 'auto' }}>
+                <input className="input" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }} placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <button type="submit" className="btn btn-primary btn-small">Go</button>
+              </form>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Thumbnail</th>
+                    <th>Book Details</th>
+                    <th>In Stock</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {books.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No books matching parameters.</td>
+                    </tr>
+                  ) : (
+                    books.map((book) => (
+                      <tr key={book.id}>
+                        <td>
+                          {resolveImageUrl(book.image) ? (
+                            <img className="book-thumb" src={resolveImageUrl(book.image)} alt={book.title} />
+                          ) : (
+                            <div className="book-thumb book-thumb-placeholder">None</div>
+                          )}
+                        </td>
+                        <td>
+                          <strong>{book.title}</strong>
+                          <div className="muted" style={{ fontSize: '0.8rem' }}>{book.author} · <span className="pill" style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}>{book.genre}</span></div>
+                        </td>
+                        <td>{book.available_quantity}/{book.quantity}</td>
+                        <td className="table-actions">
+                          <button type="button" className="btn btn-ghost btn-small" onClick={() => startEdit(book)}>Edit</button>
+                          <button type="button" className="btn btn-ghost btn-small" onClick={() => handleDelete(book.id)}>Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         </div>
       )}
 
       {tab === 'borrows' && (
         <section className="panel">
-          <h2>All borrow records</h2>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Book</th>
-                <th>Due</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {borrows.map((b) => (
-                <tr key={b.id}>
-                  <td>{b.user_name}<br /><span className="book-meta">{b.user_email}</span></td>
-                  <td>{b.book_title}</td>
-                    <td>{formatDateTime(b.due_date)}</td>
-                  <td><span className={`status ${b.status === 'overdue' ? 'danger' : ''}`}>{b.status}</span></td>
+          <h2>All Circulation Records</h2>
+          <div style={{ overflowX: 'auto', marginTop: '1.25rem' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Borrower</th>
+                  <th>Book Borrowed</th>
+                  <th>Due Date</th>
+                  <th>Loan Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {borrows.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No loans records in database.</td>
+                  </tr>
+                ) : (
+                  borrows.map((b) => (
+                    <tr key={b.id}>
+                      <td>
+                        <strong>{b.user_name}</strong>
+                        <div className="muted" style={{ fontSize: '0.8rem' }}>{b.user_email}</div>
+                      </td>
+                      <td>{b.book_title}</td>
+                      <td>{formatDateTime(b.due_date)}</td>
+                      <td>
+                        <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`}>
+                          {b.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
       {tab === 'pending' && (
         <section className="panel">
           <div className="panel-head">
-            <h2>Pending return requests</h2>
-            <p className="subhead">Review student requests and confirm receipt or reject if there is an issue.</p>
+            <div>
+              <h2>Pending Return Verifications</h2>
+              <p className="subhead" style={{ marginTop: '0.25rem' }}>
+                Confirm book physical reception or reject request.
+              </p>
+            </div>
           </div>
           {pendingReturns.length === 0 ? (
-            <p className="muted">No pending return requests.</p>
+            <p className="muted" style={{ padding: '2rem 0', textAlign: 'center' }}>No return validations awaiting attention.</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Book</th>
-                  <th>Requested</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingReturns.map((b) => (
-                  <tr key={b.id}>
-                    <td>{b.user_name}<br /><span className="book-meta">{b.user_email}</span></td>
-                    <td>{b.book_title}</td>
-                    <td>{formatDateTime(b.return_request_date)}</td>
-                    <td className="table-actions">
-                      <button type="button" className="btn btn-primary btn-small" onClick={() => handleConfirmReturn(b.id)}>
-                        Confirm
-                      </button>
-                      <button type="button" className="btn btn-ghost btn-small" onClick={() => handleRejectReturn(b.id)}>
-                        Reject
-                      </button>
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Student Details</th>
+                    <th>Book Details</th>
+                    <th>Requested On</th>
+                    <th>Verification Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pendingReturns.map((b) => (
+                    <tr key={b.id}>
+                      <td>
+                        <strong>{b.user_name}</strong>
+                        <div className="muted" style={{ fontSize: '0.8rem' }}>{b.user_email}</div>
+                      </td>
+                      <td>{b.book_title}</td>
+                      <td>{formatDateTime(b.return_request_date)}</td>
+                      <td className="table-actions">
+                        <button type="button" className="btn btn-primary btn-small" onClick={() => handleConfirmReturn(b.id)}>
+                          Confirm Receipt
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-small" onClick={() => handleRejectReturn(b.id)}>
+                          Reject Request
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}
@@ -483,210 +571,313 @@ export default function AdminDashboard() {
       {tab === 'overdue' && (
         <section className="panel">
           <div className="panel-head">
-            <h2>Overdue detection</h2>
-            <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>Run check</button>
+            <div>
+              <h2>Active Overdue Tracking</h2>
+              <p className="subhead" style={{ marginTop: '0.25rem' }}>
+                System marks loans overdue automatically based on time matrix.
+              </p>
+            </div>
+            <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>Execute Run-Check</button>
           </div>
-          <p className="subhead">Loans past due date are marked overdue automatically when you load this page.</p>
           {overdue.length === 0 ? (
-            <p className="muted">No overdue loans right now.</p>
+            <p className="muted" style={{ padding: '2rem 0', textAlign: 'center' }}>No overdue loans currently recorded.</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Book</th>
-                  <th>Due date</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {overdue.map((b) => (
-                  <tr key={b.id}>
-                    <td>{b.user_name} ({b.student_id})</td>
-                    <td>{b.book_title}</td>
-                    <td>{formatDateTime(b.due_date)}</td>
-                    <td className="muted">Confirm or reject in Pending</td>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Borrower Student</th>
+                    <th>Overdue Title</th>
+                    <th>Official Due Date</th>
+                    <th>Status Notes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {overdue.map((b) => (
+                    <tr key={b.id}>
+                      <td>
+                        <strong>{b.user_name}</strong>
+                        <div className="muted" style={{ fontSize: '0.8rem' }}>ID: {b.student_id}</div>
+                      </td>
+                      <td>{b.book_title}</td>
+                      <td>{formatDateTime(b.due_date)}</td>
+                      <td className="muted">Validation handled in Returns Flow</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}
 
       {tab === 'analytics' && reports && (
         <div className="admin-grid">
-          <section className="panel">
-            <h2>Borrow trends (30 days)</h2>
-            <Line
-              data={{
-                labels: reports.time_series.map((d) => d.date),
-                datasets: [{
-                  label: 'Borrows',
-                  data: reports.time_series.map((d) => d.borrows),
-                  borderColor: 'rgba(54,162,235,0.8)',
-                  backgroundColor: 'rgba(54,162,235,0.2)',
-                }],
-              }}
-              options={{ responsive: true }}
-            />
-          </section>
+          {/* Custom Visual Configurations for High Fidelity Charts */}
+          {(() => {
+            const chartPlugins = {
+              legend: {
+                labels: {
+                  color: '#9ca3af',
+                  font: { family: 'Inter', size: 12, weight: '500' }
+                }
+              },
+              tooltip: {
+                backgroundColor: '#0c101a',
+                titleFont: { family: 'Outfit', size: 13, weight: 'bold' },
+                bodyFont: { family: 'Inter', size: 12 },
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 8
+              }
+            };
+            const chartScales = {
+              x: {
+                grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
+              },
+              y: {
+                grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
+              }
+            };
 
-          <section className="panel">
-            <h2>Overdue trend (30 days)</h2>
-            <Line
-              data={{
-                labels: reports.overdue_trend.map((d) => d.date),
-                datasets: [{
-                  label: 'Overdue',
-                  data: reports.overdue_trend.map((d) => d.overdue),
-                  borderColor: 'rgba(255,99,132,0.8)',
-                  backgroundColor: 'rgba(255,99,132,0.2)',
-                }],
-              }}
-              options={{ responsive: true }}
-            />
-          </section>
+            return (
+              <>
+                <section className="panel" style={{ gridColumn: 'span 2' }}>
+                  <h2>Circulation Borrow Trends (Last 30 Days)</h2>
+                  <div style={{ height: '340px', marginTop: '1.5rem', position: 'relative' }}>
+                    <Line
+                      data={{
+                        labels: reports.time_series.map((d) => d.date),
+                        datasets: [{
+                          label: 'Daily Borrows',
+                          data: reports.time_series.map((d) => d.borrows),
+                          borderColor: '#6366f1',
+                          backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                          fill: true,
+                          tension: 0.35,
+                          borderWidth: 3,
+                          pointBackgroundColor: '#6366f1',
+                          pointHoverRadius: 7
+                        }],
+                      }}
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: chartPlugins,
+                        scales: chartScales
+                      }}
+                    />
+                  </div>
+                </section>
 
-          <section className="panel">
-            <h2>Borrows by genre</h2>
-            <Bar
-              data={{
-                labels: reports.borrow_by_genre.map((g) => g.genre),
-                datasets: [{
-                  label: 'Borrows',
-                  data: reports.borrow_by_genre.map((g) => g.count),
-                  backgroundColor: 'rgba(75,192,192,0.6)',
-                }],
-              }}
-              options={{ responsive: true }}
-            />
-          </section>
+                <section className="panel">
+                  <h2>Overdue Trends (Time Dimension)</h2>
+                  <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
+                    <Line
+                      data={{
+                        labels: reports.overdue_trend.map((d) => d.date),
+                        datasets: [{
+                          label: 'Overdue Logs',
+                          data: reports.overdue_trend.map((d) => d.overdue),
+                          borderColor: '#ef4444',
+                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                          fill: true,
+                          tension: 0.3,
+                          borderWidth: 2,
+                          pointBackgroundColor: '#ef4444'
+                        }],
+                      }}
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: chartPlugins,
+                        scales: chartScales
+                      }}
+                    />
+                  </div>
+                </section>
+
+                <section className="panel">
+                  <h2>Circulation Popularity by Genre</h2>
+                  <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
+                    <Bar
+                      data={{
+                        labels: reports.borrow_by_genre.map((g) => g.genre),
+                        datasets: [{
+                          label: 'Borrow Count',
+                          data: reports.borrow_by_genre.map((g) => g.count),
+                          backgroundColor: 'rgba(6, 182, 212, 0.65)',
+                          borderColor: '#06b6d4',
+                          borderWidth: 1,
+                          borderRadius: 6
+                        }],
+                      }}
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: chartPlugins,
+                        scales: chartScales
+                      }}
+                    />
+                  </div>
+                </section>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {tab === 'reports' && reports && (
-        <div className="admin-grid">
+        <div className="admin-page">
           <section className="panel">
-            <div className="panel-head">
-              <h2>Library summary</h2>
+            <div className="panel-head" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
               <div>
-                <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExport('excel')}>Export Excel</button>
-                <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExport('pdf')}>Export PDF</button>
+                <h2>Interactive Synthesis Summary</h2>
+                <p className="subhead" style={{ marginTop: '0.25rem' }}>Download official reports format spreadsheet or document.</p>
+              </div>
+              <div className="hero-actions" style={{ margin: 0 }}>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExport('excel')}>Export MS Excel</button>
+                <button type="button" className="btn btn-primary btn-small" onClick={() => handleExport('pdf')}>Export PDF Doc</button>
               </div>
             </div>
             
-            <div className="stats-grid">
+            <div className="stats-grid" style={{ marginTop: '1.5rem' }}>
               <div className="stat-card">
                 <span className="stat-number">{reports.summary.total_borrows}</span>
-                <span className="stat-label">Total borrows</span>
+                <span className="stat-label">Total Borrows Accumulated</span>
               </div>
               <div className="stat-card">
                 <span className="stat-number">{reports.summary.unique_borrowers}</span>
-                <span className="stat-label">Unique borrowers</span>
+                <span className="stat-label">Unique Active Users</span>
               </div>
               <div className="stat-card">
                 <span className="stat-number">{reports.summary.active_borrowers}</span>
-                <span className="stat-label">Active borrowers</span>
+                <span className="stat-label">Active Borrowers Now</span>
               </div>
               <div className="stat-card highlight">
                 <span className="stat-number">{reports.summary.average_borrows_per_user}</span>
-                <span className="stat-label">Average borrows per user</span>
+                <span className="stat-label">Average Borrows / User</span>
               </div>
             </div>
           </section>
 
-          <section className="panel">
-            <h2>Most borrowed books</h2>
-            {reports.most_borrowed_books.length === 0 ? (
-              <p className="muted">No borrow history yet.</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Author</th>
-                    <th>Genre</th>
-                    <th>Borrows</th>
-                    <th>Active</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.most_borrowed_books.map((book) => (
-                    <tr key={book.book_id}>
-                      <td>{book.title}</td>
-                      <td>{book.author}</td>
-                      <td>{book.genre}</td>
-                      <td>{book.borrow_count}</td>
-                      <td>{book.active_count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+          <div className="admin-grid">
+            <section className="panel" style={{ flex: 1.2 }}>
+              <h2>Most Borrowed Collection Books</h2>
+              {reports.most_borrowed_books.length === 0 ? (
+                <p className="muted" style={{ padding: '1rem 0' }}>No borrow data generated yet.</p>
+              ) : (
+                <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Book Title</th>
+                        <th>Genre</th>
+                        <th>Borrows</th>
+                        <th>Active</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.most_borrowed_books.map((book) => (
+                        <tr key={book.book_id}>
+                          <td>
+                            <strong>{book.title}</strong>
+                            <div className="muted" style={{ fontSize: '0.8rem' }}>by {book.author}</div>
+                          </td>
+                          <td><span className="pill">{book.genre}</span></td>
+                          <td><strong>{book.borrow_count}</strong></td>
+                          <td>{book.active_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Overdue report</h2>
-              <span className="muted">{reports.summary.overdue_count} overdue</span>
-            </div>
-            {reports.overdue_reports.length === 0 ? (
-              <p className="muted">No overdue loans right now.</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Book</th>
-                    <th>Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.overdue_reports.map((loan) => (
-                    <tr key={loan.id}>
-                      <td>{loan.user_name}<br /><span className="book-meta">{loan.student_id}</span></td>
-                      <td>{loan.book_title}</td>
-                      <td>{formatDateTime(loan.due_date)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+            <section className="panel" style={{ flex: 1 }}>
+              <div className="panel-head">
+                <h2>Active Overdue Register</h2>
+                <span className="status danger" style={{ fontSize: '0.75rem' }}>{reports.summary.overdue_count} Overdue</span>
+              </div>
+              {reports.overdue_reports.length === 0 ? (
+                <p className="muted" style={{ padding: '1rem 0' }}>No overdue loans currently active.</p>
+              ) : (
+                <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Member Details</th>
+                        <th>Book Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.overdue_reports.map((loan) => (
+                        <tr key={loan.id}>
+                          <td>
+                            <strong>{loan.user_name}</strong>
+                            <div className="muted" style={{ fontSize: '0.75rem' }}>ID: {loan.student_id}</div>
+                          </td>
+                          <td>
+                            {loan.book_title}
+                            <div className="muted" style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>Due: {formatDateTime(loan.due_date)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>User statistics</h2>
-              <span className="muted">{reports.user_statistics.student_users} students · {reports.user_statistics.staff_users} staff</span>
-            </div>
-            {reports.user_statistics.top_borrowers.length === 0 ? (
-              <p className="muted">No borrower data yet.</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Borrows</th>
-                    <th>Active</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.user_statistics.top_borrowers.map((user) => (
-                    <tr key={user.user_id}>
-                      <td>{user.name}<br /><span className="book-meta">{user.email}</span></td>
-                      <td>{user.role}</td>
-                      <td>{user.borrow_count}</td>
-                      <td>{user.active_count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+            <section className="panel" style={{ gridColumn: 'span 2' }}>
+              <div className="panel-head">
+                <h2>User Engagement Leaderboard</h2>
+                <span className="pill" style={{ color: 'var(--accent-secondary)' }}>
+                  {reports.user_statistics.student_users} students · {reports.user_statistics.staff_users} staff
+                </span>
+              </div>
+              {reports.user_statistics.top_borrowers.length === 0 ? (
+                <p className="muted" style={{ padding: '1.25rem 0' }}>No member telemetry in database.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>User Name</th>
+                        <th>Role</th>
+                        <th>Lifetime Borrows</th>
+                        <th>Currently Borrowed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.user_statistics.top_borrowers.map((user) => (
+                        <tr key={user.user_id}>
+                          <td>
+                            <strong>{user.name}</strong>
+                            <div className="muted" style={{ fontSize: '0.8rem' }}>{user.email}</div>
+                          </td>
+                          <td>
+                            <span className={`status ${user.role === 'admin' ? 'warning' : ''}`}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td><strong>{user.borrow_count}</strong></td>
+                          <td>{user.active_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       )}
     </div>
   );
 }
+

@@ -20,7 +20,7 @@ export default function Layout({ children }) {
     <div className="app">
       <header className="nav">
         <Link to={user ? '/catalog' : '/'} className="brand">
-          <span className="brand-mark">SL</span>
+          <img src="/pup-logo.png" alt="PUP Logo" className="brand-logo" />
           <span>SmartLib</span>
         </Link>
         <nav className="nav-links">
