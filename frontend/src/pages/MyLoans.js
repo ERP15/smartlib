@@ -55,8 +55,8 @@ export default function MyLoans() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Your account</p>
-          <h1>My Borrowed</h1>
-          <p className="subhead">My borrowed books, overdue items, and past returns.</p>
+          <h1>My Loans</h1>
+          <p className="subhead">Track active loans, due dates, and past returns in one place.</p>
         </div>
       </div>
 
@@ -68,7 +68,7 @@ export default function MyLoans() {
       ) : (
         <>
           <section className="panel">
-            <h2>My borrowed books ({active.length})</h2>
+            <h2>Active loans ({active.length})</h2>
             {active.length === 0 ? (
               <p className="muted">No active loans.</p>
             ) : (
@@ -119,7 +119,7 @@ export default function MyLoans() {
           </section>
 
           <section className="panel">
-            <h2>Past returns ({history.length})</h2>
+            <h2>Borrow history ({history.length})</h2>
             {history.length === 0 ? (
               <p className="muted">No returned books yet.</p>
             ) : (

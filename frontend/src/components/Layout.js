@@ -1,11 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { getUser, clearAuth, isStaff } from '../utils/auth';
+import { getUser, clearAuth } from '../utils/auth';
 import { logout } from '../services/api';
 
 export default function Layout({ children }) {
   const user = getUser();
   const navigate = useNavigate();
-  const staff = isStaff();
 
   const handleLogout = async () => {
     try {
@@ -20,21 +19,16 @@ export default function Layout({ children }) {
   return (
     <div className="app">
       <header className="nav">
-        <Link to={staff ? '/admin' : '/catalog'} className="brand">
+        <Link to={user ? '/catalog' : '/'} className="brand">
           <span className="brand-mark">SL</span>
           <span>SmartLib</span>
         </Link>
         <nav className="nav-links">
           {user ? (
             <>
-              {staff ? (
-                <Link to="/admin">Admin</Link>
-              ) : (
-                <>
-                  <Link to="/catalog">Books</Link>
-                  <Link to="/my-loans">My Borrowed</Link>
-                </>
-              )}
+              <Link to="/catalog">Catalog</Link>
+              <Link to="/my-loans">My Loans</Link>
+              <Link to="/profile">Profile</Link>
               <span className="nav-user">{user.name}</span>
               <button type="button" className="btn btn-ghost btn-small" onClick={handleLogout}>
                 Logout

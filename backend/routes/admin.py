@@ -1,13 +1,19 @@
-from flask import Blueprint, jsonify
-from sqlalchemy import func
+from flask import Blueprint, jsonify, request, send_file
+from sqlalchemy import case, func
 
 from ..extensions import db
 from ..models import Book, User, BorrowRecord
 from ..serializers import borrow_to_dict
 from ..services.overdue import mark_overdue_records
 from ..utils.auth import staff_required
+from io import BytesIO
+import datetime
+import openpyxl
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 admin_bp = Blueprint('admin', __name__)
+ACTIVE_STATUSES = ('borrowed', 'overdue', 'pending_return')
 
 
 @admin_bp.route('/dashboard', methods=['GET'])
@@ -17,34 +23,19 @@ def dashboard():
 
     total_books = Book.query.count()
     total_users = User.query.count()
-    active_borrows = BorrowRecord.query.filter(
-        BorrowRecord.status.in_(('borrowed', 'overdue', 'pending_return'))
-    ).count()
+    active_borrows = BorrowRecord.query.filter(BorrowRecord.status.in_(ACTIVE_STATUSES)).count()
     overdue_count = BorrowRecord.query.filter_by(status='overdue').count()
     pending_return_count = BorrowRecord.query.filter_by(status='pending_return').count()
-    available_copies = db.session.query(
-        func.coalesce(func.sum(Book.available_quantity), 0)
-    ).scalar() or 0
+    available_copies = db.session.query(func.coalesce(func.sum(Book.available_quantity), 0)).scalar() or 0
 
     recent = (
-        BorrowRecord.query
-        .order_by(BorrowRecord.borrow_date.desc())
-        .limit(8)
-        .all()
+        BorrowRecord.query.order_by(BorrowRecord.borrow_date.desc()).limit(8).all()
     )
     overdue_loans = (
-        BorrowRecord.query
-        .filter_by(status='overdue')
-        .order_by(BorrowRecord.due_date)
-        .limit(10)
-        .all()
+        BorrowRecord.query.filter_by(status='overdue').order_by(BorrowRecord.due_date).limit(10).all()
     )
     pending_returns = (
-        BorrowRecord.query
-        .filter_by(status='pending_return')
-        .order_by(BorrowRecord.return_request_date.desc())
-        .limit(10)
-        .all()
+        BorrowRecord.query.filter_by(status='pending_return').order_by(BorrowRecord.return_request_date.desc()).limit(10).all()
     )
 
     return jsonify({
@@ -60,3 +51,230 @@ def dashboard():
         'overdue_loans': [borrow_to_dict(r, include_user=True) for r in overdue_loans],
         'pending_returns': [borrow_to_dict(r, include_user=True) for r in pending_returns],
     }), 200
+
+
+def _collect_reports_data():
+    mark_overdue_records()
+
+    total_books = Book.query.count()
+    total_users = User.query.count()
+    total_borrows = BorrowRecord.query.count()
+    active_borrows = BorrowRecord.query.filter(BorrowRecord.status.in_(ACTIVE_STATUSES)).count()
+    overdue_count = BorrowRecord.query.filter_by(status='overdue').count()
+    pending_return_count = BorrowRecord.query.filter_by(status='pending_return').count()
+    unique_borrowers = db.session.query(func.count(func.distinct(BorrowRecord.user_id))).scalar() or 0
+    active_borrowers = (
+        db.session.query(func.count(func.distinct(BorrowRecord.user_id)))
+        .filter(BorrowRecord.status.in_(ACTIVE_STATUSES))
+        .scalar()
+        or 0
+    )
+    available_copies = db.session.query(func.coalesce(func.sum(Book.available_quantity), 0)).scalar() or 0
+
+    most_borrowed_books = (
+        db.session.query(
+            Book.id.label('book_id'),
+            Book.title,
+            Book.author,
+            Book.genre,
+            func.count(BorrowRecord.id).label('borrow_count'),
+            func.sum(case((BorrowRecord.status.in_(ACTIVE_STATUSES), 1), else_=0)).label('active_count'),
+            func.sum(case((BorrowRecord.status == 'overdue', 1), else_=0)).label('overdue_count'),
+        )
+        .join(BorrowRecord, BorrowRecord.book_id == Book.id)
+        .group_by(Book.id)
+        .order_by(func.count(BorrowRecord.id).desc(), Book.title.asc())
+        .limit(10)
+        .all()
+    )
+
+    overdue_reports = (
+        BorrowRecord.query.filter_by(status='overdue').order_by(BorrowRecord.due_date).limit(20).all()
+    )
+
+    top_borrowers = (
+        db.session.query(
+            User.id,
+            User.name,
+            User.email,
+            User.role,
+            func.count(BorrowRecord.id).label('borrow_count'),
+            func.sum(case((BorrowRecord.status.in_(ACTIVE_STATUSES), 1), else_=0)).label('active_count'),
+            func.sum(case((BorrowRecord.status == 'overdue', 1), else_=0)).label('overdue_count'),
+        )
+        .join(BorrowRecord, BorrowRecord.user_id == User.id)
+        .group_by(User.id)
+        .order_by(func.count(BorrowRecord.id).desc(), User.name.asc())
+        .limit(10)
+        .all()
+    )
+
+    student_users = User.query.filter_by(role='student').count()
+    staff_users = User.query.filter(User.role.in_(('admin', 'librarian'))).count()
+
+    average_borrows_per_user = round(total_borrows / total_users, 2) if total_users else 0
+
+    # Chart-friendly aggregates (last 30 days)
+    today = datetime.date.today()
+    start_date = today - datetime.timedelta(days=29)
+
+    borrows_by_date_q = (
+        db.session.query(func.date(BorrowRecord.borrow_date).label('d'), func.count(BorrowRecord.id).label('c'))
+        .filter(BorrowRecord.borrow_date >= start_date)
+        .group_by(func.date(BorrowRecord.borrow_date))
+        .all()
+    )
+    borrows_map = {r.d.isoformat(): int(r.c) for r in borrows_by_date_q}
+    time_series = []
+    for i in range(30):
+        dt = start_date + datetime.timedelta(days=i)
+        key = dt.isoformat()
+        time_series.append({'date': key, 'borrows': borrows_map.get(key, 0)})
+
+    overdue_by_date_q = (
+        db.session.query(func.date(BorrowRecord.due_date).label('d'), func.count(BorrowRecord.id).label('c'))
+        .filter(BorrowRecord.due_date >= start_date)
+        .filter(BorrowRecord.status == 'overdue')
+        .group_by(func.date(BorrowRecord.due_date))
+        .all()
+    )
+    overdue_map = {r.d.isoformat(): int(r.c) for r in overdue_by_date_q}
+    overdue_trend = []
+    for i in range(30):
+        dt = start_date + datetime.timedelta(days=i)
+        key = dt.isoformat()
+        overdue_trend.append({'date': key, 'overdue': overdue_map.get(key, 0)})
+
+    borrow_by_genre_q = (
+        db.session.query(Book.genre, func.count(BorrowRecord.id).label('c'))
+        .join(BorrowRecord, BorrowRecord.book_id == Book.id)
+        .group_by(Book.genre)
+        .order_by(func.count(BorrowRecord.id).desc())
+        .all()
+    )
+    borrow_by_genre = [{'genre': g or 'Unknown', 'count': int(c)} for g, c in borrow_by_genre_q]
+
+    data = {
+        'summary': {
+            'total_books': total_books,
+            'total_users': total_users,
+            'total_borrows': total_borrows,
+            'active_borrows': active_borrows,
+            'overdue_count': overdue_count,
+            'pending_return_count': pending_return_count,
+            'unique_borrowers': int(unique_borrowers),
+            'active_borrowers': int(active_borrowers),
+            'available_copies': int(available_copies),
+            'average_borrows_per_user': average_borrows_per_user,
+        },
+        'most_borrowed_books': [
+            {
+                'book_id': row.book_id,
+                'title': row.title,
+                'author': row.author,
+                'genre': row.genre,
+                'borrow_count': int(row.borrow_count or 0),
+                'active_count': int(row.active_count or 0),
+                'overdue_count': int(row.overdue_count or 0),
+            }
+            for row in most_borrowed_books
+        ],
+        'overdue_reports': [borrow_to_dict(record, include_user=True) for record in overdue_reports],
+        'user_statistics': {
+            'student_users': student_users,
+            'staff_users': staff_users,
+            'top_borrowers': [
+                {
+                    'user_id': row.id,
+                    'name': row.name,
+                    'email': row.email,
+                    'role': row.role,
+                    'borrow_count': int(row.borrow_count or 0),
+                    'active_count': int(row.active_count or 0),
+                    'overdue_count': int(row.overdue_count or 0),
+                }
+                for row in top_borrowers
+            ],
+        },
+        'time_series': time_series,
+        'overdue_trend': overdue_trend,
+        'borrow_by_genre': borrow_by_genre,
+    }
+
+    return data
+
+
+@admin_bp.route('/reports', methods=['GET'])
+@staff_required
+def reports():
+    data = _collect_reports_data()
+    return jsonify(data), 200
+
+
+@admin_bp.route('/reports/export', methods=['GET'])
+@staff_required
+def export_reports():
+    fmt = (request.args.get('format') or 'excel').strip().lower()
+    data = _collect_reports_data()
+
+    if fmt == 'excel' or fmt == 'xlsx':
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Summary'
+        s = data.get('summary', {})
+        ws.append(['Metric', 'Value'])
+        for k, v in s.items():
+            ws.append([k, v])
+
+        # Most borrowed
+        mb = data.get('most_borrowed_books', [])
+        ws2 = wb.create_sheet('MostBorrowed')
+        ws2.append(['Title', 'Author', 'Genre', 'Borrows', 'Active', 'Overdue'])
+        for b in mb:
+            ws2.append([b.get('title'), b.get('author'), b.get('genre'), b.get('borrow_count'), b.get('active_count'), b.get('overdue_count')])
+
+        # Top borrowers
+        tb = data.get('user_statistics', {}).get('top_borrowers', [])
+        ws3 = wb.create_sheet('TopBorrowers')
+        ws3.append(['Name', 'Email', 'Role', 'Borrows', 'Active', 'Overdue'])
+        for u in tb:
+            ws3.append([u.get('name'), u.get('email'), u.get('role'), u.get('borrow_count'), u.get('active_count'), u.get('overdue_count')])
+
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        filename = f"library-reports-{datetime.date.today().isoformat()}.xlsx"
+        return send_file(bio, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    # PDF export
+    bio = BytesIO()
+    p = canvas.Canvas(bio, pagesize=letter)
+    width, height = letter
+    y = height - 40
+    p.setFont('Helvetica-Bold', 14)
+    p.drawString(40, y, 'Library Reports')
+    y -= 30
+    p.setFont('Helvetica', 10)
+    s = data.get('summary', {})
+    for k, v in s.items():
+        if y < 80:
+            p.showPage(); y = height - 40
+        p.drawString(40, y, f"{k}: {v}")
+        y -= 14
+
+    y -= 10
+    p.setFont('Helvetica-Bold', 12)
+    p.drawString(40, y, 'Most borrowed books')
+    y -= 18
+    p.setFont('Helvetica', 10)
+    for b in data.get('most_borrowed_books', []):
+        if y < 80:
+            p.showPage(); y = height - 40
+        p.drawString(40, y, f"{b.get('title')} — {b.get('borrow_count')} borrows")
+        y -= 14
+
+    p.showPage()
+    p.save()
+    bio.seek(0)
+    filename = f"library-reports-{datetime.date.today().isoformat()}.pdf"
+    return send_file(bio, download_name=filename, as_attachment=True, mimetype='application/pdf')

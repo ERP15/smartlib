@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   getAdminDashboard,
+  getAdminReports,
+  getAdminReportsExport,
   getBooks,
   createBook,
   updateBook,
@@ -12,6 +14,21 @@ import {
   rejectReturn,
   uploadBookImage,
 } from '../services/api';
+import { saveAs } from 'file-saver';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -36,6 +53,7 @@ function formatDateTime(value) {
 export default function AdminDashboard() {
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(null);
+  const [reports, setReports] = useState(null);
   const [recent, setRecent] = useState([]);
   const [overdue, setOverdue] = useState([]);
   const [pendingReturns, setPendingReturns] = useState([]);
@@ -54,6 +72,11 @@ export default function AdminDashboard() {
     setStats(res.data.stats);
     setRecent(res.data.recent_borrows || []);
     setOverdue(res.data.overdue_loans || []);
+  };
+
+  const loadReports = async () => {
+    const res = await getAdminReports();
+    setReports(res.data);
   };
 
   const loadBooks = async (q = '') => {
@@ -75,7 +98,7 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadDashboard(), loadBooks(), loadBorrows(), loadPendingReturns()]);
+      await Promise.all([loadDashboard(), loadReports(), loadBooks(), loadBorrows(), loadPendingReturns()]);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
@@ -169,6 +192,20 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExport = async (format) => {
+    try {
+      const res = await getAdminReportsExport(format);
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
+      const cd = res.headers['content-disposition'] || '';
+      let filename = `library-reports.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+      const m = cd.match(/filename\*=UTF-8''(.+)$|filename="?([^";]+)"?/);
+      if (m) filename = decodeURIComponent(m[1] || m[2]);
+      saveAs(blob, filename);
+    } catch (err) {
+      setError('Failed to generate export');
+    }
+  };
+
   if (loading && !stats) {
     return (
       <div className="page">
@@ -222,7 +259,7 @@ export default function AdminDashboard() {
       )}
 
       <div className="tabs">
-        {['overview', 'books', 'borrows', 'pending', 'overdue'].map((t) => (
+          {['overview', 'books', 'borrows', 'pending', 'overdue', 'analytics', 'reports'].map((t) => (
           <button
             key={t}
             type="button"
@@ -475,6 +512,180 @@ export default function AdminDashboard() {
             </table>
           )}
         </section>
+      )}
+
+      {tab === 'analytics' && reports && (
+        <div className="admin-grid">
+          <section className="panel">
+            <h2>Borrow trends (30 days)</h2>
+            <Line
+              data={{
+                labels: reports.time_series.map((d) => d.date),
+                datasets: [{
+                  label: 'Borrows',
+                  data: reports.time_series.map((d) => d.borrows),
+                  borderColor: 'rgba(54,162,235,0.8)',
+                  backgroundColor: 'rgba(54,162,235,0.2)',
+                }],
+              }}
+              options={{ responsive: true }}
+            />
+          </section>
+
+          <section className="panel">
+            <h2>Overdue trend (30 days)</h2>
+            <Line
+              data={{
+                labels: reports.overdue_trend.map((d) => d.date),
+                datasets: [{
+                  label: 'Overdue',
+                  data: reports.overdue_trend.map((d) => d.overdue),
+                  borderColor: 'rgba(255,99,132,0.8)',
+                  backgroundColor: 'rgba(255,99,132,0.2)',
+                }],
+              }}
+              options={{ responsive: true }}
+            />
+          </section>
+
+          <section className="panel">
+            <h2>Borrows by genre</h2>
+            <Bar
+              data={{
+                labels: reports.borrow_by_genre.map((g) => g.genre),
+                datasets: [{
+                  label: 'Borrows',
+                  data: reports.borrow_by_genre.map((g) => g.count),
+                  backgroundColor: 'rgba(75,192,192,0.6)',
+                }],
+              }}
+              options={{ responsive: true }}
+            />
+          </section>
+        </div>
+      )}
+
+      {tab === 'reports' && reports && (
+        <div className="admin-grid">
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Library summary</h2>
+              <div>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExport('excel')}>Export Excel</button>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExport('pdf')}>Export PDF</button>
+              </div>
+            </div>
+            
+            <div className="stats-grid">
+              <div className="stat-card">
+                <span className="stat-number">{reports.summary.total_borrows}</span>
+                <span className="stat-label">Total borrows</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">{reports.summary.unique_borrowers}</span>
+                <span className="stat-label">Unique borrowers</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">{reports.summary.active_borrowers}</span>
+                <span className="stat-label">Active borrowers</span>
+              </div>
+              <div className="stat-card highlight">
+                <span className="stat-number">{reports.summary.average_borrows_per_user}</span>
+                <span className="stat-label">Average borrows per user</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Most borrowed books</h2>
+            {reports.most_borrowed_books.length === 0 ? (
+              <p className="muted">No borrow history yet.</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Borrows</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.most_borrowed_books.map((book) => (
+                    <tr key={book.book_id}>
+                      <td>{book.title}</td>
+                      <td>{book.author}</td>
+                      <td>{book.genre}</td>
+                      <td>{book.borrow_count}</td>
+                      <td>{book.active_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Overdue report</h2>
+              <span className="muted">{reports.summary.overdue_count} overdue</span>
+            </div>
+            {reports.overdue_reports.length === 0 ? (
+              <p className="muted">No overdue loans right now.</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Book</th>
+                    <th>Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.overdue_reports.map((loan) => (
+                    <tr key={loan.id}>
+                      <td>{loan.user_name}<br /><span className="book-meta">{loan.student_id}</span></td>
+                      <td>{loan.book_title}</td>
+                      <td>{formatDateTime(loan.due_date)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <h2>User statistics</h2>
+              <span className="muted">{reports.user_statistics.student_users} students · {reports.user_statistics.staff_users} staff</span>
+            </div>
+            {reports.user_statistics.top_borrowers.length === 0 ? (
+              <p className="muted">No borrower data yet.</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Borrows</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.user_statistics.top_borrowers.map((user) => (
+                    <tr key={user.user_id}>
+                      <td>{user.name}<br /><span className="book-meta">{user.email}</span></td>
+                      <td>{user.role}</td>
+                      <td>{user.borrow_count}</td>
+                      <td>{user.active_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );

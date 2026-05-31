@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import Catalog from './pages/Catalog';
 import MyLoans from './pages/MyLoans';
 import AdminDashboard from './pages/AdminDashboard';
+import Profile from './pages/Profile';
 import { getUser, homePathForRole } from './utils/auth';
 
 function Home() {
@@ -19,40 +20,58 @@ function Home() {
 
   return (
     <div className="page landing-page">
-      <div className="landing-backdrop" />
-      <div className="landing-overlay" />
+      <div className="landing-glow" />
       <section className="landing-shell">
-        <div className="landing-copy">
+        <div className="landing-copy surface-card">
           <p className="eyebrow">SmartLib Library System</p>
-          <h1>Discover, borrow, and manage with a calmer library experience.</h1>
+          <h1>A modern academic library experience for students and schools.</h1>
           <p className="subhead">
-            Student access stays simple. Admin access stays separate. Choose the path that fits you.
+            Browse a well-organized catalog, track your loans, and manage library activity with a clean professional interface.
           </p>
-          <button type="button" className="btn btn-primary landing-cta" onClick={() => setShowPicker(true)}>
-            Login / Register
-          </button>
+          <div className="hero-actions">
+            <button type="button" className="btn btn-primary landing-cta" onClick={() => setShowPicker(true)}>
+              Login / Register
+            </button>
+            <button type="button" className="btn btn-ghost landing-cta" onClick={() => navigate('/catalog')}>
+              View Catalog
+            </button>
+          </div>
+          <div className="hero-metrics">
+            <div>
+              <strong>Clean</strong>
+              <span>Academic-first layout</span>
+            </div>
+            <div>
+              <strong>Fast</strong>
+              <span>Simple browsing and borrowing</span>
+            </div>
+            <div>
+              <strong>Responsive</strong>
+              <span>Works on desktop and mobile</span>
+            </div>
+          </div>
         </div>
 
         {showPicker && (
           <div className="role-modal" role="dialog" aria-modal="true" aria-labelledby="role-picker-title">
             <div className="role-modal-card">
-              <p className="eyebrow">Choose your path</p>
+              <p className="eyebrow">Choose access</p>
               <h2 id="role-picker-title">Are you a student or admin?</h2>
-              <p className="subhead">Students can log in and register. Admins go straight to the admin login.</p>
+              <p className="subhead">Students can log in or register. Admins can go straight to the staff login.</p>
               <div className="role-actions">
                 <button
                   type="button"
                   className="btn btn-primary btn-block"
                   onClick={() => navigate('/login?role=student')}
                 >
-                  Student
+                  Student Login
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost btn-block"
                   onClick={() => navigate('/login?role=admin')}
                 >
-                  Admin
+                  Admin Login
                 </button>
                 <button type="button" className="role-close" onClick={() => setShowPicker(false)}>
                   Close
@@ -86,6 +105,14 @@ function App() {
           element={
             <ProtectedRoute>
               <MyLoans />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />

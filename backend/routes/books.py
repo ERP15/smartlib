@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 from pathlib import Path
 from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
@@ -6,9 +7,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
 from ..extensions import db
-from ..models import Book
+from ..models import Book, BorrowRecord
 from ..serializers import book_to_dict
-from ..utils.auth import login_required, staff_required
+from ..utils.auth import login_required, staff_required, get_current_user
 
 books_bp = Blueprint('books', __name__)
 
@@ -48,6 +49,99 @@ def list_books():
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
     return jsonify({'book': book_to_dict(book)}), 200
+
+
+@books_bp.route('/recommendations', methods=['GET'])
+@login_required
+def recommend_books():
+    user = get_current_user()
+    genre_filter = (request.args.get('genre') or '').strip().lower()
+    author_filter = (request.args.get('author') or '').strip().lower()
+    try:
+        limit = int(request.args.get('limit', 6))
+    except (TypeError, ValueError):
+        limit = 6
+    limit = max(1, min(limit, 20))
+
+    history = (
+        BorrowRecord.query
+        .join(Book)
+        .filter(BorrowRecord.user_id == user.id)
+        .order_by(BorrowRecord.borrow_date.desc())
+        .all()
+    )
+    borrowed_book_ids = {record.book_id for record in history if record.book_id}
+    genre_counts = Counter()
+    author_counts = Counter()
+    for record in history:
+        if record.book:
+            genre_counts[(record.book.genre or '').strip().lower()] += 1
+            author_counts[(record.book.author or '').strip().lower()] += 1
+
+    popularity_rows = (
+        db.session.query(
+            BorrowRecord.book_id,
+            db.func.count(BorrowRecord.id).label('borrow_count'),
+        )
+        .group_by(BorrowRecord.book_id)
+        .all()
+    )
+    popularity = {row.book_id: int(row.borrow_count or 0) for row in popularity_rows}
+
+    query = Book.query.filter(Book.available_quantity > 0)
+    if borrowed_book_ids:
+        query = query.filter(~Book.id.in_(borrowed_book_ids))
+
+    recommendations = []
+    for book in query.all():
+        score = 0
+        reasons = []
+        genre_key = (book.genre or '').strip().lower()
+        author_key = (book.author or '').strip().lower()
+
+        genre_hits = genre_counts.get(genre_key, 0)
+        if genre_hits:
+            score += genre_hits * 5
+            reasons.append(f"Matches your {book.genre} borrowing history")
+
+        author_hits = author_counts.get(author_key, 0)
+        if author_hits:
+            score += author_hits * 6
+            reasons.append(f"Same author as books you've borrowed: {book.author}")
+
+        if genre_filter and genre_key == genre_filter:
+            score += 8
+            reasons.append(f"Matches requested genre: {request.args.get('genre')}")
+
+        if author_filter and author_key == author_filter:
+            score += 8
+            reasons.append(f"Matches requested author: {request.args.get('author')}")
+
+        borrow_popularity = popularity.get(book.id, 0)
+        if borrow_popularity:
+            score += min(borrow_popularity, 10)
+            reasons.append(f"Borrowed {borrow_popularity} times in the library")
+
+        if not reasons:
+            reasons.append('Available title')
+
+        recommendations.append({
+            'book': book_to_dict(book),
+            'score': score,
+            'reasons': reasons,
+        })
+
+    recommendations.sort(
+        key=lambda item: (
+            -item['score'],
+            item['book']['title'].lower(),
+            item['book']['author'].lower(),
+        )
+    )
+
+    return jsonify({
+        'recommendations': recommendations[:limit],
+    }), 200
 
 
 @books_bp.route('/upload-image', methods=['POST'])

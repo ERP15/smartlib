@@ -15,6 +15,7 @@ export const getMe = () => api.get('/api/auth/me');
 
 export const getBooks = (q) => api.get('/api/books', { params: q ? { q } : {} });
 export const getBook = (id) => api.get(`/api/books/${id}`);
+export const getRecommendations = (params = {}) => api.get('/api/books/recommendations', { params });
 export const createBook = (payload) => api.post('/api/books', payload);
 export const updateBook = (id, payload) => api.put(`/api/books/${id}`, payload);
 export const deleteBook = (id) => api.delete(`/api/books/${id}`);
@@ -42,5 +43,7 @@ export const uploadBookImage = (file) => {
 };
 
 export const getAdminDashboard = () => api.get('/api/admin/dashboard');
+export const getAdminReports = () => api.get('/api/admin/reports');
+export const getAdminReportsExport = (format = 'excel') => api.get('/api/admin/reports/export', { params: { format }, responseType: 'blob' });
 
 export default api;
