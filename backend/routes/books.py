@@ -27,7 +27,6 @@ def _allowed_file(filename):
 
 
 @books_bp.route('', methods=['GET'])
-@login_required
 def list_books():
     q = (request.args.get('q') or '').strip()
     query = Book.query
@@ -45,7 +44,6 @@ def list_books():
 
 
 @books_bp.route('/<int:book_id>', methods=['GET'])
-@login_required
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
     return jsonify({'book': book_to_dict(book)}), 200

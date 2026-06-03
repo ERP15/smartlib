@@ -26,14 +26,14 @@ function Home() {
           <p className="eyebrow">SmartLib Library System</p>
           <h1>A modern academic library experience for students and schools.</h1>
           <p className="subhead">
-            Browse a well-organized catalog, track your loans, and manage library activity with a clean professional interface.
+            Browse a well-organized collection of books, track your loans, and manage library activity with a clean professional interface.
           </p>
           <div className="hero-actions">
             <button type="button" className="btn btn-primary landing-cta" onClick={() => setShowPicker(true)}>
               Login / Register
             </button>
             <button type="button" className="btn btn-ghost landing-cta" onClick={() => navigate('/catalog')}>
-              View Catalog
+              Browse Books
             </button>
           </div>
           <div className="hero-metrics">
@@ -89,17 +89,10 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Catalog />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route
-          path="/catalog"
-          element={
-            <ProtectedRoute>
-              <Catalog />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/catalog" element={<Catalog />} />
         <Route
           path="/my-loans"
           element={

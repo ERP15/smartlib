@@ -129,6 +129,64 @@ def me():
     }), 200
 
 
+@auth_bp.route('/profile', methods=['PUT'])
+def update_profile():
+    user_id = session.get('user_id')
+    if not user_id:
+        return _error('Not logged in', 401)
+    user = User.query.get(user_id)
+    if not user:
+        session.clear()
+        return _error('User not found', 401)
+        
+    data = request.get_json() or {}
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    
+    if name:
+        user.name = name.strip()
+    if email:
+        email = email.strip().lower()
+        if user.role == 'student' and not EMAIL_PATTERN.match(email):
+            return _error('Email must be an @iskolarngbayan.pup.edu.ph address', 400)
+        existing = User.query.filter_by(email=email).first()
+        if existing and existing.id != user.id:
+            return _error('Email is already in use', 400)
+        user.email = email
+    if password:
+        password = password.strip()
+        if user.role == 'student':
+            if len(password) < 8:
+                return _error('Password must be at least 8 characters long', 400)
+            if not re.search(r'[A-Z]', password):
+                return _error('Password must include at least one uppercase letter', 400)
+            if not re.search(r'[a-z]', password):
+                return _error('Password must include at least one lowercase letter', 400)
+            if not re.search(r'[0-9]', password):
+                return _error('Password must include at least one number', 400)
+            if not re.search(r'[^A-Za-z0-9]', password):
+                return _error('Password must include at least one special character', 400)
+        user.password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return _error('Failed to update profile', 500)
+        
+    return jsonify({
+        'message': 'Profile updated successfully',
+        'user': {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'role': user.role,
+            'student_id': user.student_id,
+        }
+    }), 200
+
+
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     session.clear()

@@ -39,8 +39,8 @@ export default function MyLoans() {
     setMessage(null);
     setError(null);
     try {
-      await requestReturnBook(id);
-      setMessage('Return request submitted. Admin will confirm when the book is received.');
+      const res = await requestReturnBook(id);
+      setMessage(res.data.message || 'Return request submitted. Admin will confirm when the book is received.');
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not submit return request');
@@ -55,7 +55,7 @@ export default function MyLoans() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Your account</p>
-          <h1>My Loans</h1>
+          <h1>Borrowed</h1>
           <p className="subhead">Track active loans, due dates, and past returns in one place.</p>
         </div>
       </div>

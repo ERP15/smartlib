@@ -1,10 +1,24 @@
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearAuth } from '../utils/auth';
 import { logout } from '../services/api';
 
 export default function Layout({ children }) {
   const user = getUser();
   const navigate = useNavigate();
+  const [showRolePicker, setShowRolePicker] = useState(false);
+
+  React.useEffect(() => {
+    if (showRolePicker) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showRolePicker]);
 
   const handleLogout = async () => {
     try {
@@ -13,22 +27,25 @@ export default function Layout({ children }) {
       /* session may already be gone */
     }
     clearAuth();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
     <div className="app">
       <header className="nav">
-        <Link to={user ? '/catalog' : '/'} className="brand">
+        <Link to="/" className="brand">
           <img src="/pup-logo.png" alt="PUP Logo" className="brand-logo" />
           <span>SmartLib</span>
         </Link>
         <nav className="nav-links">
           {user ? (
             <>
-              <Link to="/catalog">Catalog</Link>
-              <Link to="/my-loans">My Loans</Link>
-              <Link to="/profile">Profile</Link>
+              {(user.role === 'admin' || user.role === 'librarian') && (
+                <NavLink to="/admin">Admin Dashboard</NavLink>
+              )}
+              <NavLink to="/catalog">Books</NavLink>
+              <NavLink to="/my-loans">Borrowed</NavLink>
+              <NavLink to="/profile">Profile</NavLink>
               <span className="nav-user">{user.name}</span>
               <button type="button" className="btn btn-ghost btn-small" onClick={handleLogout}>
                 Logout
@@ -37,13 +54,56 @@ export default function Layout({ children }) {
           ) : (
             <>
               <Link to="/">Home</Link>
-              <Link to="/login">Login</Link>
-              <Link className="btn btn-primary btn-small" to="/register">Register</Link>
+              <button 
+                type="button" 
+                className="nav-btn-link"
+                onClick={() => setShowRolePicker(true)}
+              >
+                Login
+              </button>
+              <Link to="/register">Register</Link>
             </>
           )}
         </nav>
       </header>
       <main>{children}</main>
+
+      {/* Role Picker Modal Overlay */}
+      {showRolePicker && createPortal(
+        <div className="role-modal" role="dialog" aria-modal="true" aria-labelledby="role-picker-title">
+          <div className="role-modal-card">
+            <p className="eyebrow">Choose access</p>
+            <h2 id="role-picker-title">Are you a student or admin?</h2>
+            <p className="subhead">Students can log in or register. Admins can go straight to the staff login.</p>
+            <div className="role-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  setShowRolePicker(false);
+                  navigate('/login?role=student');
+                }}
+              >
+                Student Login
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                onClick={() => {
+                  setShowRolePicker(false);
+                  navigate('/login?role=admin');
+                }}
+              >
+                Admin Login
+              </button>
+              <button type="button" className="role-close" onClick={() => setShowRolePicker(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { borrowBook, getBooks, getRecommendations } from '../services/api';
+import { getUser } from '../utils/auth';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const DEFAULT_BORROW_DAYS = 14;
@@ -21,6 +23,8 @@ function normalizeBook(entry) {
 }
 
 export default function Catalog() {
+  const navigate = useNavigate();
+  const user = getUser();
   const [books, setBooks] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [query, setQuery] = useState('');
@@ -29,6 +33,7 @@ export default function Catalog() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [borrowModal, setBorrowModal] = useState(null);
+  const [showRolePicker, setShowRolePicker] = useState(false);
 
   // Advanced Filters & Sort State
   const [selectedGenre, setSelectedGenre] = useState('All');
@@ -67,12 +72,16 @@ export default function Catalog() {
 
   useEffect(() => {
     loadBooks();
-    loadRecommendations();
+    if (user) {
+      loadRecommendations();
+    } else {
+      setRecommendationLoading(false);
+    }
   }, []);
 
   // Lock background page scroll when modal is active
   useEffect(() => {
-    if (borrowModal) {
+    if (borrowModal || showRolePicker) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -80,7 +89,7 @@ export default function Catalog() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [borrowModal]);
+  }, [borrowModal, showRolePicker]);
 
   // Handle dynamic AI generation
   const handleAskAI = async (e) => {
@@ -227,14 +236,25 @@ export default function Catalog() {
             </div>
           )}
           {book.description && <p className="book-description">{book.description}</p>}
-          <button
-            type="button"
-            className="btn btn-primary btn-block book-borrow-btn"
-            onClick={() => openBorrowModal(book)}
-            disabled={book.available_quantity < 1}
-          >
-            Borrow
-          </button>
+          {!user ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-block book-borrow-btn"
+              onClick={() => setShowRolePicker(true)}
+              style={{ background: 'var(--accent-secondary)' }}
+            >
+              Login/Register to borrow
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary btn-block book-borrow-btn"
+              onClick={() => openBorrowModal(book)}
+              disabled={book.available_quantity < 1}
+            >
+              Borrow
+            </button>
+          )}
         </div>
       </article>
     );
@@ -243,22 +263,55 @@ export default function Catalog() {
   return (
     <div className="page catalog-page fade-in">
       {/* Hero Section */}
-      <section className="catalog-hero surface-card">
-        <div>
-          <p className="eyebrow">SmartLib Catalog</p>
-          <h1>Browse academic catalog with AI assistance.</h1>
-          <p className="subhead">
-            Search titles, configure search discovery filters, and borrow books through our highly interactive smart interface.
+      <section className="catalog-hero surface-card" style={{
+        backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.65)), url("/library_hero_bg.png")',
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        height: '500px',
+        padding: '1.25rem 1.5rem',
+        borderRadius: '16px',
+        position: 'relative',
+        boxSizing: 'border-box'
+      }}>
+        <div style={{ maxWidth: '850px', marginBottom: '0.75rem', flex: 'none' }}>
+          <h1 style={{ 
+            fontSize: 'clamp(2rem, 5.5vw, 3.2rem)', 
+            fontWeight: '900', 
+            color: '#fff', 
+            marginBottom: '0.3rem', 
+            fontFamily: 'Outfit, sans-serif',
+            lineHeight: '1.2'
+          }}>
+            PUP Library Management System
+          </h1>
+          <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', color: 'rgba(255,255,255,0.9)', margin: 0 }}>
+            Discover the Best Books Around
           </p>
         </div>
-        <form className="search-bar catalog-search" onSubmit={handleSearch}>
+        <form className="search-bar catalog-search" onSubmit={handleSearch} style={{ maxWidth: '380px', width: '100%', margin: '0 auto', flex: 'none' }}>
           <input
             className="input"
-            placeholder="Search catalog by title, author, or keyword..."
+            style={{ 
+              borderRadius: '99px', 
+              padding: '0.5rem 1.25rem', 
+              background: '#fff', 
+              color: 'var(--text)', 
+              border: 'none',
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}
+            placeholder="search book by title..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <button type="submit" className="btn btn-primary">Search</button>
         </form>
       </section>
 
@@ -266,127 +319,107 @@ export default function Catalog() {
       {message && <div className="success">{message}</div>}
 
       {/* Interactive AI Book Recommendation Panel */}
-      <section className="panel" style={{ border: '1px dashed var(--accent)', background: 'rgba(99, 102, 241, 0.03)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '2rem', alignItems: 'center' }} className="form-row">
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--accent-secondary)' }}>✨ Interactive AI Recommender</p>
-            <h2 style={{ marginTop: '0.25rem' }}>Ask SmartLib AI</h2>
-            <p className="subhead" style={{ marginBottom: '1.25rem' }}>
-              Specify genre or author preferences to recalculate personalized matching suggestions.
-            </p>
-            <form onSubmit={handleAskAI} className="form">
-              <div className="form-row">
-                <label className="field">
-                  <span>Preferred Genre</span>
-                  <input 
-                    className="input" 
-                    placeholder="e.g. Fiction, Technical..." 
-                    value={aiGenre} 
-                    onChange={(e) => setAiGenre(e.target.value)} 
-                  />
-                </label>
-                <label className="field">
-                  <span>Preferred Author</span>
-                  <input 
-                    className="input" 
-                    placeholder="e.g. Orwell, Asimov..." 
-                    value={aiAuthor} 
-                    onChange={(e) => setAiAuthor(e.target.value)} 
-                  />
-                </label>
-              </div>
-              <div className="hero-actions" style={{ justifyContent: 'flex-start' }}>
-                <button type="submit" className="btn btn-primary" disabled={aiLoading || recommendationLoading}>
-                  {aiLoading ? 'AI Thinking...' : 'Compute Matches'}
-                </button>
-                {(aiGenre || aiAuthor) && (
-                  <button type="button" className="btn btn-ghost" onClick={handleResetAI} disabled={aiLoading}>
-                    Reset AI Filters
+      {user && (
+        <section className="panel" style={{ border: '1px dashed var(--accent)', background: 'rgba(99, 102, 241, 0.03)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '2rem', alignItems: 'center' }} className="form-row">
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--accent-secondary)' }}>✨ Interactive AI Recommender</p>
+              <h2 style={{ marginTop: '0.25rem' }}>Ask SmartLib AI</h2>
+              <p className="subhead" style={{ marginBottom: '1.25rem' }}>
+                Specify genre or author preferences to recalculate personalized matching suggestions.
+              </p>
+              <form onSubmit={handleAskAI} className="form">
+                <div className="form-row">
+                  <label className="field">
+                    <span>Preferred Genre</span>
+                    <input 
+                      className="input" 
+                      placeholder="e.g. Fiction, Technical..." 
+                      value={aiGenre} 
+                      onChange={(e) => setAiGenre(e.target.value)} 
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Preferred Author</span>
+                    <input 
+                      className="input" 
+                      placeholder="e.g. Orwell, Asimov..." 
+                      value={aiAuthor} 
+                      onChange={(e) => setAiAuthor(e.target.value)} 
+                    />
+                  </label>
+                </div>
+                <div className="hero-actions" style={{ justifyContent: 'flex-start' }}>
+                  <button type="submit" className="btn btn-primary" disabled={aiLoading || recommendationLoading}>
+                    {aiLoading ? 'AI Thinking...' : 'Compute Matches'}
                   </button>
+                  {(aiGenre || aiAuthor) && (
+                    <button type="button" className="btn btn-ghost" onClick={handleResetAI} disabled={aiLoading}>
+                      Reset AI Filters
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+            <div>
+              <p className="eyebrow">AI Recommendation Output</p>
+              <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '0.5rem', marginTop: '0.5rem' }}>
+                {recommendationLoading || aiLoading ? (
+                  <div style={{ padding: '2rem 0', textAlign: 'center' }}>
+                    <p className="muted">Computing AI relationships...</p>
+                  </div>
+                ) : recommendations.length === 0 ? (
+                  <p className="muted" style={{ padding: '1rem 0' }}>No personalized recommendations found. Try adjusting parameters or borrow books to build history.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '0.75rem' }}>
+                    {recommendations.slice(0, 3).map((rec) => {
+                      const b = normalizeBook(rec);
+                      return (
+                        <div 
+                          key={b.id} 
+                          onClick={() => openBorrowModal(b)}
+                          style={{ 
+                            display: 'flex', 
+                            gap: '1rem', 
+                            alignItems: 'center', 
+                            padding: '0.75rem', 
+                            borderRadius: '12px', 
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid var(--border)',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s, border-color 0.2s'
+                          }}
+                          className="aside-list-item"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
+                            e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                          }}
+                        >
+                          {resolveImageUrl(b.image) ? (
+                            <img src={resolveImageUrl(b.image)} alt={b.title} style={{ width: '40px', height: '56px', objectFit: 'cover', borderRadius: '6px' }} />
+                          ) : (
+                            <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{getMatchScore(rec.score)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-            </form>
-          </div>
-          <div>
-            <p className="eyebrow">AI Recommendation Output</p>
-            <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '0.5rem', marginTop: '0.5rem' }}>
-              {recommendationLoading || aiLoading ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}>
-                  <p className="muted">Computing AI relationships...</p>
-                </div>
-              ) : recommendations.length === 0 ? (
-                <p className="muted" style={{ padding: '1rem 0' }}>No personalized recommendations found. Try adjusting parameters or borrow books to build history.</p>
-              ) : (
-                <div style={{ display: 'grid', gap: '0.75rem' }}>
-                  {recommendations.slice(0, 3).map((rec) => {
-                    const b = normalizeBook(rec);
-                    return (
-                      <div 
-                        key={b.id} 
-                        onClick={() => openBorrowModal(b)}
-                        style={{ 
-                          display: 'flex', 
-                          gap: '1rem', 
-                          alignItems: 'center', 
-                          padding: '0.75rem', 
-                          borderRadius: '12px', 
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid var(--border)',
-                          cursor: 'pointer',
-                          transition: 'background 0.2s, border-color 0.2s'
-                        }}
-                        className="aside-list-item"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
-                          e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                          e.currentTarget.style.borderColor = 'var(--border)';
-                        }}
-                      >
-                        {resolveImageUrl(b.image) ? (
-                          <img src={resolveImageUrl(b.image)} alt={b.title} style={{ width: '40px', height: '56px', objectFit: 'cover', borderRadius: '6px' }} />
-                        ) : (
-                          <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
-                        )}
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{getMatchScore(rec.score)}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Book Spotlight */}
-      {featuredBook && (
-        <section className="catalog-feature panel">
-          <div className="catalog-feature-copy">
-            <p className="eyebrow">Spotlight</p>
-            <h2>{featuredBook.title}</h2>
-            <p className="subhead">{featuredBook.author}</p>
-            <p className="book-description">{featuredBook.description || 'Highlighted title from the SmartLib collection.'}</p>
-            <div className="hero-actions" style={{ justifyContent: 'flex-start' }}>
-              <button type="button" className="btn btn-primary" onClick={() => openBorrowModal(featuredBook)} disabled={featuredBook.available_quantity < 1}>
-                Borrow featured
-              </button>
-            </div>
-          </div>
-          <div className="catalog-feature-cover">
-            {resolveImageUrl(featuredBook.image) ? (
-              <img src={resolveImageUrl(featuredBook.image)} alt={featuredBook.title} className="featured-image" />
-            ) : (
-              <div className="featured-image featured-placeholder">{featuredBook.title.slice(0, 1).toUpperCase()}</div>
-            )}
           </div>
         </section>
       )}
+
+
 
       {/* Advanced Discovery Filters & Sorting Controls */}
       <section className="panel" style={{ padding: '1.25rem 2rem' }}>
@@ -440,7 +473,7 @@ export default function Catalog() {
         <div className="section-head">
           <div>
             <p className="eyebrow">Collection Grid</p>
-            <h2>{selectedGenre === 'All' ? 'Complete Catalog' : `${selectedGenre} Books`}</h2>
+            <h2>{selectedGenre === 'All' ? 'All Books' : `${selectedGenre} Books`}</h2>
           </div>
           <span className="muted">{filteredAndSortedBooks.length} items found</span>
         </div>
@@ -506,6 +539,43 @@ export default function Catalog() {
               </button>
               <button type="button" className="btn btn-ghost" onClick={closeBorrowModal}>
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Role Picker Modal Overlay for Guests */}
+      {showRolePicker && createPortal(
+        <div className="role-modal" role="dialog" aria-modal="true" aria-labelledby="role-picker-title">
+          <div className="role-modal-card">
+            <p className="eyebrow">Choose access</p>
+            <h2 id="role-picker-title">Are you a student or admin?</h2>
+            <p className="subhead">Students can log in or register. Admins can go straight to the staff login.</p>
+            <div className="role-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  setShowRolePicker(false);
+                  navigate('/login?role=student');
+                }}
+              >
+                Student Login
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                onClick={() => {
+                  setShowRolePicker(false);
+                  navigate('/login?role=admin');
+                }}
+              >
+                Admin Login
+              </button>
+              <button type="button" className="role-close" onClick={() => setShowRolePicker(false)}>
+                Close
               </button>
             </div>
           </div>

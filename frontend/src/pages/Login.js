@@ -12,6 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
   const role = searchParams.get('role') === 'admin' ? 'admin' : 'student';
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -85,13 +86,39 @@ export default function Login() {
         </p>
       </div>
       <div className="auth-aside">
-        <div className="aside-card">
-          <h3>Today in the stacks</h3>
-          <p>Reserve books, track your loans, and receive due date alerts.</p>
-          <div className="aside-highlight">
-            <span>15</span>
-            <span>Hold requests ready</span>
-          </div>
+        <div className="aside-card" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          textAlign: 'center',
+          padding: '3rem 2rem',
+          minHeight: '400px'
+        }}>
+          <img 
+            src="/pup-logo.png" 
+            alt="PUP Logo" 
+            style={{ 
+              width: '150px', 
+              height: '150px', 
+              objectFit: 'contain',
+              marginBottom: '1.5rem',
+              filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15))'
+            }} 
+          />
+          <h2 style={{ 
+            fontFamily: 'Outfit, sans-serif', 
+            fontWeight: '900', 
+            fontSize: '1.8rem', 
+            color: 'var(--accent)', 
+            margin: 0,
+            lineHeight: '1.25'
+          }}>
+            PUP Library Management System
+          </h2>
+          <p className="muted" style={{ fontSize: '0.95rem', marginTop: '0.5rem', maxWidth: '280px' }}>
+            Discover the Best Books Around
+          </p>
         </div>
       </div>
     </div>

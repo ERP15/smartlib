@@ -13,6 +13,9 @@ import {
   confirmReturn,
   rejectReturn,
   uploadBookImage,
+  getAdminUsers,
+  updateAdminUser,
+  deleteAdminUser,
 } from '../services/api';
 import { saveAs } from 'file-saver';
 import {
@@ -51,7 +54,7 @@ function formatDateTime(value) {
 }
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('analytics');
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [recent, setRecent] = useState([]);
@@ -66,6 +69,8 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
 
   const loadDashboard = async () => {
     const res = await getAdminDashboard();
@@ -94,11 +99,16 @@ export default function AdminDashboard() {
     setPendingReturns(res.data.borrows || []);
   };
 
+  const loadUsers = async () => {
+    const res = await getAdminUsers();
+    setUsers(res.data.users || []);
+  };
+
   const loadAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadDashboard(), loadReports(), loadBooks(), loadBorrows(), loadPendingReturns()]);
+      await Promise.all([loadDashboard(), loadReports(), loadBooks(), loadBorrows(), loadPendingReturns(), loadUsers()]);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
@@ -109,6 +119,50 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    if (editingUser) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [editingUser]);
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteAdminUser(userId);
+      setMessage('User deleted successfully.');
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete user');
+    }
+  };
+
+  const handleUserUpdateSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    try {
+      await updateAdminUser(editingUser.id, {
+        name: editingUser.name,
+        email: editingUser.email,
+        student_id: editingUser.student_id,
+        role: editingUser.role,
+        is_active: editingUser.is_active,
+      });
+      setMessage('User updated successfully.');
+      setEditingUser(null);
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update user');
+    }
+  };
 
   const handleBookSubmit = async (e) => {
     e.preventDefault();
@@ -164,8 +218,8 @@ export default function AdminDashboard() {
 
   const handleConfirmReturn = async (borrowId) => {
     try {
-      await confirmReturn(borrowId);
-      setMessage('Return request confirmed.');
+      const res = await confirmReturn(borrowId);
+      setMessage(res.data.message || 'Return request confirmed.');
       await loadAll();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not confirm return');
@@ -174,8 +228,8 @@ export default function AdminDashboard() {
 
   const handleRejectReturn = async (borrowId) => {
     try {
-      await rejectReturn(borrowId);
-      setMessage('Return request rejected.');
+      const res = await rejectReturn(borrowId);
+      setMessage(res.data.message || 'Return request rejected.');
       await loadAll();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not reject return');
@@ -241,15 +295,6 @@ export default function AdminDashboard() {
           <div className="stat-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <span className="stat-number">{stats.available_copies}</span>
-                <span className="stat-label">Copies Available</span>
-              </div>
-              <span style={{ fontSize: '1.75rem', color: 'var(--success)' }}>🟢</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
                 <span className="stat-number">{stats.active_borrows}</span>
                 <span className="stat-label">Active Loans</span>
               </div>
@@ -265,11 +310,11 @@ export default function AdminDashboard() {
               <span style={{ fontSize: '1.75rem', color: 'var(--danger)' }}>🔴</span>
             </div>
           </div>
-          {stats.pending_returns !== undefined && (
+          {stats.pending_return_count !== undefined && (
             <div className="stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <span className="stat-number" style={{ color: 'var(--warning)' }}>{stats.pending_returns}</span>
+                  <span className="stat-number" style={{ color: 'var(--warning)' }}>{stats.pending_return_count}</span>
                   <span className="stat-label">Pending Returns</span>
                 </div>
                 <span style={{ fontSize: '1.75rem', color: 'var(--warning)' }}>⏳</span>
@@ -289,86 +334,18 @@ export default function AdminDashboard() {
       )}
 
       <div className="tabs" style={{ marginBottom: '1.5rem' }}>
-        {['overview', 'books', 'borrows', 'pending', 'overdue', 'analytics', 'reports'].map((t) => (
+        {['analytics', 'books', 'borrows', 'pending', 'overdue', 'users'].map((t) => (
           <button
             key={t}
             type="button"
             className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => setTab(t)}
           >
-            {t === 'pending' ? 'Pending' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'pending' ? 'Pending' : t === 'analytics' ? 'Analytics' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
-      {tab === 'overview' && (
-        <div className="admin-grid">
-          <section className="panel" style={{ flex: 1.5 }}>
-            <h2>Recent Activity Logs</h2>
-            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Book Title</th>
-                    <th>Status</th>
-                    <th>Due Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.length === 0 ? (
-                    <tr>
-                      <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No recent activity.</td>
-                    </tr>
-                  ) : (
-                    recent.map((b) => (
-                      <tr key={b.id}>
-                        <td>
-                          <strong>{b.user_name}</strong>
-                          <div className="muted" style={{ fontSize: '0.75rem' }}>Student</div>
-                        </td>
-                        <td>{b.book_title}</td>
-                        <td>
-                          <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`}>
-                            {b.status}
-                          </span>
-                        </td>
-                        <td>{formatDateTime(b.due_date)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="panel" style={{ flex: 1 }}>
-            <div className="panel-head">
-              <h2>Overdue Alert</h2>
-              <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>
-                Refresh Check
-              </button>
-            </div>
-            {overdue.length === 0 ? (
-              <p className="muted" style={{ padding: '1rem 0' }}>No overdue borrowed books detected.</p>
-            ) : (
-              <ul className="book-list">
-                {overdue.slice(0, 5).map((b) => (
-                  <li key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p className="book-title" style={{ margin: 0, fontSize: '0.95rem' }}>{b.book_title}</p>
-                      <p className="subhead" style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>
-                        {b.user_name} · due {formatDateTime(b.due_date)}
-                      </p>
-                    </div>
-                    <span className="status danger" style={{ fontSize: '0.7rem' }}>Overdue</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      )}
 
       {tab === 'books' && (
         <div className="admin-grid">
@@ -489,12 +466,13 @@ export default function AdminDashboard() {
                   <th>Book Borrowed</th>
                   <th>Due Date</th>
                   <th>Loan Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {borrows.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No loans records in database.</td>
+                    <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No loans records in database.</td>
                   </tr>
                 ) : (
                   borrows.map((b) => (
@@ -509,6 +487,19 @@ export default function AdminDashboard() {
                         <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`}>
                           {b.status}
                         </span>
+                      </td>
+                      <td>
+                        {b.status !== 'returned' ? (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={() => handleConfirmReturn(b.id)}
+                          >
+                            Return Book
+                          </button>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -589,7 +580,7 @@ export default function AdminDashboard() {
                     <th>Borrower Student</th>
                     <th>Overdue Title</th>
                     <th>Official Due Date</th>
-                    <th>Status Notes</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -601,7 +592,15 @@ export default function AdminDashboard() {
                       </td>
                       <td>{b.book_title}</td>
                       <td>{formatDateTime(b.due_date)}</td>
-                      <td className="muted">Validation handled in Returns Flow</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-small"
+                          onClick={() => handleConfirmReturn(b.id)}
+                        >
+                          Return Book
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -612,126 +611,8 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'analytics' && reports && (
-        <div className="admin-grid">
-          {/* Custom Visual Configurations for High Fidelity Charts */}
-          {(() => {
-            const chartPlugins = {
-              legend: {
-                labels: {
-                  color: '#9ca3af',
-                  font: { family: 'Inter', size: 12, weight: '500' }
-                }
-              },
-              tooltip: {
-                backgroundColor: '#0c101a',
-                titleFont: { family: 'Outfit', size: 13, weight: 'bold' },
-                bodyFont: { family: 'Inter', size: 12 },
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                borderWidth: 1,
-                padding: 10,
-                cornerRadius: 8
-              }
-            };
-            const chartScales = {
-              x: {
-                grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
-              },
-              y: {
-                grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
-              }
-            };
-
-            return (
-              <>
-                <section className="panel" style={{ gridColumn: 'span 2' }}>
-                  <h2>Circulation Borrow Trends (Last 30 Days)</h2>
-                  <div style={{ height: '340px', marginTop: '1.5rem', position: 'relative' }}>
-                    <Line
-                      data={{
-                        labels: reports.time_series.map((d) => d.date),
-                        datasets: [{
-                          label: 'Daily Borrows',
-                          data: reports.time_series.map((d) => d.borrows),
-                          borderColor: '#6366f1',
-                          backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                          fill: true,
-                          tension: 0.35,
-                          borderWidth: 3,
-                          pointBackgroundColor: '#6366f1',
-                          pointHoverRadius: 7
-                        }],
-                      }}
-                      options={{ 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: chartPlugins,
-                        scales: chartScales
-                      }}
-                    />
-                  </div>
-                </section>
-
-                <section className="panel">
-                  <h2>Overdue Trends (Time Dimension)</h2>
-                  <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
-                    <Line
-                      data={{
-                        labels: reports.overdue_trend.map((d) => d.date),
-                        datasets: [{
-                          label: 'Overdue Logs',
-                          data: reports.overdue_trend.map((d) => d.overdue),
-                          borderColor: '#ef4444',
-                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                          fill: true,
-                          tension: 0.3,
-                          borderWidth: 2,
-                          pointBackgroundColor: '#ef4444'
-                        }],
-                      }}
-                      options={{ 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: chartPlugins,
-                        scales: chartScales
-                      }}
-                    />
-                  </div>
-                </section>
-
-                <section className="panel">
-                  <h2>Circulation Popularity by Genre</h2>
-                  <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
-                    <Bar
-                      data={{
-                        labels: reports.borrow_by_genre.map((g) => g.genre),
-                        datasets: [{
-                          label: 'Borrow Count',
-                          data: reports.borrow_by_genre.map((g) => g.count),
-                          backgroundColor: 'rgba(6, 182, 212, 0.65)',
-                          borderColor: '#06b6d4',
-                          borderWidth: 1,
-                          borderRadius: 6
-                        }],
-                      }}
-                      options={{ 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: chartPlugins,
-                        scales: chartScales
-                      }}
-                    />
-                  </div>
-                </section>
-              </>
-            );
-          })()}
-        </div>
-      )}
-
-      {tab === 'reports' && reports && (
-        <div className="admin-page">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Reports Export & Synthesis Summary Card */}
           <section className="panel">
             <div className="panel-head" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
               <div>
@@ -764,6 +645,124 @@ export default function AdminDashboard() {
             </div>
           </section>
 
+          {/* Analytics Charts Grid */}
+          <div className="admin-grid">
+            {(() => {
+              const chartPlugins = {
+                legend: {
+                  labels: {
+                    color: '#9ca3af',
+                    font: { family: 'Inter', size: 12, weight: '500' }
+                  }
+                },
+                tooltip: {
+                  backgroundColor: '#0c101a',
+                  titleFont: { family: 'Outfit', size: 13, weight: 'bold' },
+                  bodyFont: { family: 'Inter', size: 12 },
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderWidth: 1,
+                  padding: 10,
+                  cornerRadius: 8
+                }
+              };
+              const chartScales = {
+                x: {
+                  grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                  ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
+                },
+                y: {
+                  grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                  ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
+                }
+              };
+
+              return (
+                <>
+                  <section className="panel" style={{ gridColumn: 'span 2' }}>
+                    <h2>Circulation Borrow Trends (Last 30 Days)</h2>
+                    <div style={{ height: '340px', marginTop: '1.5rem', position: 'relative' }}>
+                      <Line
+                        data={{
+                          labels: reports.time_series.map((d) => d.date),
+                          datasets: [{
+                            label: 'Daily Borrows',
+                            data: reports.time_series.map((d) => d.borrows),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 3,
+                            pointBackgroundColor: '#6366f1',
+                            pointHoverRadius: 7
+                          }],
+                        }}
+                        options={{ 
+                          responsive: true, 
+                          maintainAspectRatio: false,
+                          plugins: chartPlugins,
+                          scales: chartScales
+                        }}
+                      />
+                    </div>
+                  </section>
+
+                  <section className="panel">
+                    <h2>Overdue Trends (Time Dimension)</h2>
+                    <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
+                      <Line
+                        data={{
+                          labels: reports.overdue_trend.map((d) => d.date),
+                          datasets: [{
+                            label: 'Overdue Logs',
+                            data: reports.overdue_trend.map((d) => d.overdue),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointBackgroundColor: '#ef4444'
+                          }],
+                        }}
+                        options={{ 
+                          responsive: true, 
+                          maintainAspectRatio: false,
+                          plugins: chartPlugins,
+                          scales: chartScales
+                        }}
+                      />
+                    </div>
+                  </section>
+
+                  <section className="panel">
+                    <h2>Circulation Popularity by Genre</h2>
+                    <div style={{ height: '280px', marginTop: '1.25rem', position: 'relative' }}>
+                      <Bar
+                        data={{
+                          labels: reports.borrow_by_genre.map((g) => g.genre),
+                          datasets: [{
+                            label: 'Borrow Count',
+                            data: reports.borrow_by_genre.map((g) => g.count),
+                            backgroundColor: 'rgba(6, 182, 212, 0.65)',
+                            borderColor: '#06b6d4',
+                            borderWidth: 1,
+                            borderRadius: 6
+                          }],
+                        }}
+                        options={{ 
+                          responsive: true, 
+                          maintainAspectRatio: false,
+                          plugins: chartPlugins,
+                          scales: chartScales
+                        }}
+                      />
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Tables Grid */}
           <div className="admin-grid">
             <section className="panel" style={{ flex: 1.2 }}>
               <h2>Most Borrowed Collection Books</h2>
@@ -874,6 +873,184 @@ export default function AdminDashboard() {
                 </div>
               )}
             </section>
+          </div>
+        </div>
+      )}
+
+      {/* Users Tab */}
+      {tab === 'users' && (
+        <section className="panel">
+          <div className="panel-head" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
+            <div>
+              <h2>User Management</h2>
+              <p className="subhead" style={{ marginTop: '0.25rem' }}>View, edit roles, and delete registered members.</p>
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto', marginTop: '1.5rem' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>User Details</th>
+                  <th>Student ID</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No registered users found.</td>
+                  </tr>
+                ) : (
+                  users.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <strong>{u.name}</strong>
+                        <div className="muted" style={{ fontSize: '0.8rem' }}>{u.email}</div>
+                      </td>
+                      <td><code>{u.student_id || '—'}</code></td>
+                      <td>
+                        <span className={`status ${u.role === 'admin' ? 'danger' : u.role === 'librarian' ? 'warning' : ''}`}>
+                          {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status ${u.is_active ? 'success' : 'danger'}`}>
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-small"
+                            onClick={() => setEditingUser({ ...u })}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-small"
+                            onClick={() => handleDeleteUser(u.id)}
+                            style={{ background: 'var(--danger-soft)', color: 'var(--danger)', border: 'none', padding: '0.35rem 0.75rem' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      {/* Edit User Modal Overlay */}
+      {editingUser && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
+          <div className="modal-card" style={{ maxWidth: '520px', width: '100%', padding: '1.25rem' }}>
+            <button type="button" className="modal-close" onClick={() => setEditingUser(null)} aria-label="Close edit dialog">
+              ×
+            </button>
+            <p className="eyebrow">User profile</p>
+            <h2 id="edit-user-title" style={{ margin: '0.15rem 0 0.35rem' }}>Edit User Role & Status</h2>
+            <p className="subhead">Update permissions and details for this account.</p>
+            
+            <form 
+              onSubmit={handleUserUpdateSubmit} 
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '0.85rem', 
+                marginTop: '1.25rem' 
+              }}
+            >
+              <label className="field" style={{ gridColumn: 'span 2' }}>
+                <span>Full Name</span>
+                <input
+                  type="text"
+                  className="input"
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="field" style={{ gridColumn: 'span 1' }}>
+                <span>Email Address</span>
+                <input
+                  type="email"
+                  className="input"
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="field" style={{ gridColumn: 'span 1' }}>
+                <span>Student ID / Staff ID</span>
+                <input
+                  type="text"
+                  className="input"
+                  value={editingUser.student_id}
+                  onChange={(e) => setEditingUser({ ...editingUser, student_id: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="field" style={{ gridColumn: 'span 1' }}>
+                <span>System Role</span>
+                <select
+                  className="input"
+                  value={editingUser.role}
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                  style={{ width: '100%' }}
+                >
+                  <option value="student">Student</option>
+                  <option value="librarian">Librarian</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label 
+                className="field" 
+                style={{ 
+                  gridColumn: 'span 1', 
+                  display: 'flex', 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  gap: '0.75rem', 
+                  cursor: 'pointer', 
+                  height: '40px', 
+                  alignSelf: 'end',
+                  margin: 0
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={editingUser.is_active}
+                  onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
+                  style={{ width: 'auto', margin: 0 }}
+                />
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>Active & Enabled</span>
+              </label>
+
+              <div 
+                className="hero-actions" 
+                style={{ 
+                  gridColumn: 'span 2', 
+                  marginTop: '0.5rem', 
+                  display: 'flex', 
+                  gap: '0.75rem', 
+                  justifyContent: 'flex-end' 
+                }}
+              >
+                <button type="submit" className="btn btn-primary">
+                  Save changes
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setEditingUser(null)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, session
 from sqlalchemy import case, func
 
 from ..extensions import db
@@ -278,3 +278,64 @@ def export_reports():
     bio.seek(0)
     filename = f"library-reports-{datetime.date.today().isoformat()}.pdf"
     return send_file(bio, download_name=filename, as_attachment=True, mimetype='application/pdf')
+
+
+def user_to_dict(user):
+    return {
+        'id': user.id,
+        'student_id': user.student_id,
+        'name': user.name,
+        'email': user.email,
+        'role': user.role,
+        'is_active': user.is_active,
+        'created_at': user.created_at.isoformat() if user.created_at else None
+    }
+
+
+@admin_bp.route('/users', methods=['GET'])
+@staff_required
+def get_users():
+    users = User.query.all()
+    return jsonify({'users': [user_to_dict(u) for u in users]}), 200
+
+
+@admin_bp.route('/users/<int:user_id>', methods=['PUT'])
+@staff_required
+def update_user(user_id):
+    user = User.query.get_or_404(user_id)
+    data = request.get_json() or {}
+    
+    if 'name' in data:
+        user.name = data['name']
+    if 'email' in data:
+        existing = User.query.filter_by(email=data['email']).first()
+        if existing and existing.id != user.id:
+            return jsonify({'error': 'Email is already taken'}), 400
+        user.email = data['email']
+    if 'student_id' in data:
+        existing = User.query.filter_by(student_id=data['student_id']).first()
+        if existing and existing.id != user.id:
+            return jsonify({'error': 'Student ID is already taken'}), 400
+        user.student_id = data['student_id']
+    if 'role' in data:
+        if data['role'] not in ('admin', 'librarian', 'student'):
+            return jsonify({'error': 'Invalid role'}), 400
+        user.role = data['role']
+    if 'is_active' in data:
+        user.is_active = bool(data['is_active'])
+        
+    db.session.commit()
+    return jsonify({'message': 'User updated successfully', 'user': user_to_dict(user)}), 200
+
+
+@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@staff_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    current_user_id = session.get('user_id')
+    if current_user_id == user.id:
+        return jsonify({'error': 'You cannot delete yourself'}), 400
+        
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message': 'User deleted successfully'}), 200

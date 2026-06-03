@@ -176,8 +176,8 @@ def return_book(borrow_id):
         return _error('Already returned', 409)
 
     if role in ('admin', 'librarian'):
-        if record.status != 'pending_return':
-            return _error('Only pending return requests can be finalized', 409)
+        if record.status not in ('pending_return', 'borrowed', 'overdue'):
+            return _error('No active loan to return', 409)
 
         book = Book.query.get(record.book_id)
         record.actual_return_date = datetime.utcnow()
@@ -218,8 +218,8 @@ def return_book(borrow_id):
 @staff_required
 def confirm_return(borrow_id):
     record = BorrowRecord.query.get_or_404(borrow_id)
-    if record.status != 'pending_return':
-        return _error('No pending return request to confirm', 409)
+    if record.status not in ('pending_return', 'borrowed', 'overdue'):
+        return _error('No active loan to return', 409)
 
     book = Book.query.get(record.book_id)
     record.actual_return_date = datetime.utcnow()

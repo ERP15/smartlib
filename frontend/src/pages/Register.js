@@ -38,6 +38,8 @@ export default function Register() {
   const [searchParams] = useSearchParams();
   const [studentId, setStudentId] = useState('');
   const [name, setName] = useState('');
+
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -149,13 +151,39 @@ export default function Register() {
         </p>
       </div>
       <div className="auth-aside">
-        <div className="aside-card">
-          <h3>Why join SmartLib?</h3>
-          <ul className="aside-list">
-            <li>Instant access to availability updates.</li>
-            <li>One-tap renewals from any device.</li>
-            <li>Personalized holds and alerts.</li>
-          </ul>
+        <div className="aside-card" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          textAlign: 'center',
+          padding: '3rem 2rem',
+          minHeight: '400px'
+        }}>
+          <img 
+            src="/pup-logo.png" 
+            alt="PUP Logo" 
+            style={{ 
+              width: '150px', 
+              height: '150px', 
+              objectFit: 'contain',
+              marginBottom: '1.5rem',
+              filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15))'
+            }} 
+          />
+          <h2 style={{ 
+            fontFamily: 'Outfit, sans-serif', 
+            fontWeight: '900', 
+            fontSize: '1.8rem', 
+            color: 'var(--accent)', 
+            margin: 0,
+            lineHeight: '1.25'
+          }}>
+            PUP Library Management System
+          </h2>
+          <p className="muted" style={{ fontSize: '0.95rem', marginTop: '0.5rem', maxWidth: '280px' }}>
+            Discover the Best Books Around
+          </p>
         </div>
       </div>
     </div>
