@@ -97,20 +97,34 @@ def borrow_book():
     if not book_id:
         return _error('book_id is required', 400)
 
-    borrow_duration = data.get('borrow_duration', BORROW_DAYS)
-    borrow_unit = (data.get('borrow_unit') or 'days').strip().lower()
-    try:
-        borrow_duration = int(borrow_duration)
-    except (TypeError, ValueError):
-        return _error('borrow_duration must be a number', 400)
+    due_date_str = data.get('due_date')
+    if due_date_str:
+        try:
+            # Clean string (strip milliseconds and timezone indicator 'Z')
+            clean_str = due_date_str.replace('Z', '').split('.')[0]
+            due = datetime.fromisoformat(clean_str)
+        except Exception as e:
+            return _error(f'Invalid due_date format: {str(e)}', 400)
+        
+        if due <= datetime.utcnow():
+            return _error('Due date must be in the future', 400)
+    else:
+        borrow_duration = data.get('borrow_duration', BORROW_DAYS)
+        borrow_unit = (data.get('borrow_unit') or 'days').strip().lower()
+        try:
+            borrow_duration = int(borrow_duration)
+        except (TypeError, ValueError):
+            return _error('borrow_duration must be a number', 400)
 
-    if borrow_unit not in ('days', 'hours'):
-        return _error('borrow_unit must be days or hours', 400)
+        if borrow_unit not in ('days', 'hours'):
+            return _error('borrow_unit must be days or hours', 400)
 
-    if borrow_unit == 'days' and not (MIN_BORROW_DAYS <= borrow_duration <= MAX_BORROW_DAYS):
-        return _error(f'borrow_duration must be between {MIN_BORROW_DAYS} and {MAX_BORROW_DAYS} days', 400)
-    if borrow_unit == 'hours' and not (1 <= borrow_duration <= MAX_BORROW_HOURS):
-        return _error(f'borrow_duration must be between 1 and {MAX_BORROW_HOURS} hours', 400)
+        if borrow_unit == 'days' and not (MIN_BORROW_DAYS <= borrow_duration <= MAX_BORROW_DAYS):
+            return _error(f'borrow_duration must be between {MIN_BORROW_DAYS} and {MAX_BORROW_DAYS} days', 400)
+        if borrow_unit == 'hours' and not (1 <= borrow_duration <= MAX_BORROW_HOURS):
+            return _error(f'borrow_duration must be between 1 and {MAX_BORROW_HOURS} hours', 400)
+
+        due = datetime.utcnow() + timedelta(days=borrow_duration if borrow_unit == 'days' else 0, hours=borrow_duration if borrow_unit == 'hours' else 0)
 
     book = Book.query.get(book_id)
     if not book:
@@ -127,7 +141,6 @@ def borrow_book():
     if active:
         return _error('You already have an active loan for this book', 409)
 
-    due = datetime.utcnow() + timedelta(days=borrow_duration if borrow_unit == 'days' else 0, hours=borrow_duration if borrow_unit == 'hours' else 0)
     record = BorrowRecord(
         user_id=user.id,
         book_id=book.id,

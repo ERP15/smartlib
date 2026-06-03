@@ -375,11 +375,14 @@ main {
   color: var(--text);
 }
 
+.surface-card,
 .panel,
 .auth-card,
 .aside-card,
 .role-modal-card,
-.catalog-feature {
+.profile-card,
+.catalog-feature,
+.modal-card {
   padding: 2rem;
 }
 
@@ -518,10 +521,16 @@ main {
 
 .catalog-hero,
 .hero-banner {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 2rem;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.catalog-hero > div:first-child,
+.hero-banner > div:first-child {
+  flex: 1.2 1 450px;
 }
 
 .catalog-hero h1,
@@ -539,6 +548,11 @@ main {
   gap: 0.75rem;
   flex-wrap: wrap;
   width: 100%;
+}
+
+.catalog-hero .catalog-search,
+.hero-banner .search-bar {
+  flex: 0.8 1 320px;
 }
 
 .search-bar .input {
@@ -1093,8 +1107,8 @@ select:focus {
 
 .modal-card {
   position: relative;
-  width: min(540px, 100%);
-  padding: 2rem;
+  width: min(480px, 100%);
+  padding: 1.75rem;
   border-color: var(--border);
   box-shadow: var(--shadow-lg);
 }
@@ -1121,19 +1135,29 @@ select:focus {
 
 .modal-book {
   display: grid;
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 80px 1fr;
   gap: 1.25rem;
   align-items: start;
-  margin: 1.5rem 0;
+  margin: 1.25rem 0;
 }
 
 .modal-book img,
 .modal-book-placeholder {
-  width: 120px;
-  height: 175px;
+  width: 80px;
+  height: 115px;
   border-radius: var(--radius);
   object-fit: cover;
   box-shadow: var(--shadow-sm);
+}
+
+.modal-book .book-description {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-top: 0.25rem;
 }
 
 .modal-form-row {
@@ -1380,14 +1404,14 @@ select:focus {
   }
 
   .modal-book {
-    grid-template-columns: 90px 1fr;
+    grid-template-columns: 80px 1fr;
     gap: 1rem;
   }
 
   .modal-book img,
   .modal-book-placeholder {
-    width: 90px;
-    height: 130px;
+    width: 80px;
+    height: 115px;
   }
 
   .form-row {
@@ -1409,6 +1433,7 @@ select:focus {
   }
 
   .landing-copy,
+  .surface-card,
   .panel,
   .auth-card,
   .aside-card,

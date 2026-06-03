@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { borrowBook, getBooks, getRecommendations } from '../services/api';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const DEFAULT_BORROW_DAYS = 14;
 const FEATURED_GENRES = ['All', 'Fiction', 'Technical', 'Romance', 'History', 'Dystopian', 'Reference'];
+
+function getLocalISOString(date) {
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 19);
+}
 
 function resolveImageUrl(image) {
   if (!image) return null;
@@ -64,6 +70,18 @@ export default function Catalog() {
     loadRecommendations();
   }, []);
 
+  // Lock background page scroll when modal is active
+  useEffect(() => {
+    if (borrowModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [borrowModal]);
+
   // Handle dynamic AI generation
   const handleAskAI = async (e) => {
     e.preventDefault();
@@ -101,10 +119,10 @@ export default function Catalog() {
   };
 
   const openBorrowModal = (book) => {
+    const defaultDueDate = new Date(Date.now() + DEFAULT_BORROW_DAYS * 24 * 60 * 60 * 1000);
     setBorrowModal({
       book,
-      amount: DEFAULT_BORROW_DAYS,
-      unit: 'days',
+      dueDate: getLocalISOString(defaultDueDate),
     });
   };
 
@@ -116,7 +134,8 @@ export default function Catalog() {
     setMessage(null);
     setError(null);
     try {
-      await borrowBook(borrowModal.book.id, borrowModal.amount, borrowModal.unit);
+      const utcDueDate = new Date(borrowModal.dueDate).toISOString();
+      await borrowBook(borrowModal.book.id, null, null, utcDueDate);
       setMessage('Borrow request submitted successfully.');
       closeBorrowModal();
       loadBooks(query.trim());
@@ -332,7 +351,7 @@ export default function Catalog() {
                           <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
                         )}
                         <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#fff' }} className="book-title">{b.title}</h4>
+                          <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
                           <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{getMatchScore(rec.score)}</span>
                         </div>
                       </div>
@@ -396,7 +415,7 @@ export default function Catalog() {
                 onChange={(e) => setOnlyAvailable(e.target.checked)}
                 style={{ accentColor: 'var(--accent)' }}
               />
-              <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: '500' }}>Available only</span>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text)', fontWeight: '500' }}>Available only</span>
             </label>
 
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -448,7 +467,7 @@ export default function Catalog() {
       </section>
 
       {/* Borrow Duration Modal Overlay */}
-      {borrowModal && (
+      {borrowModal && createPortal(
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="borrow-title">
           <div className="modal-card">
             <button type="button" className="modal-close" onClick={closeBorrowModal} aria-label="Close borrow dialog">
@@ -464,32 +483,21 @@ export default function Catalog() {
                 <div className="modal-book-placeholder">{borrowModal.book.title.slice(0, 1).toUpperCase()}</div>
               )}
               <div>
-                <p className="book-author" style={{ fontSize: '1rem', color: '#fff', fontWeight: 'bold' }}>{borrowModal.book.author}</p>
+                <p className="book-author" style={{ fontSize: '1rem', color: 'var(--accent)', fontWeight: 'bold', marginBottom: '0.35rem' }}>{borrowModal.book.author}</p>
                 <p className="book-description">{borrowModal.book.description || 'Borrow details and duration settings.'}</p>
               </div>
             </div>
-            <div className="form-row modal-form-row">
+            <div className="form-row modal-form-row" style={{ gridTemplateColumns: '1fr' }}>
               <label className="field">
-                <span>Borrow for</span>
+                <span>Select Due Date & Time</span>
                 <input
-                  type="number"
-                  min="1"
-                  max="360"
+                  type="datetime-local"
+                  step="1"
                   className="input"
-                  value={borrowModal.amount}
-                  onChange={(event) => setBorrowModal({ ...borrowModal, amount: Number(event.target.value) })}
+                  value={borrowModal.dueDate}
+                  onChange={(event) => setBorrowModal({ ...borrowModal, dueDate: event.target.value })}
+                  required
                 />
-              </label>
-              <label className="field">
-                <span>Duration Unit</span>
-                <select
-                  className="input"
-                  value={borrowModal.unit}
-                  onChange={(event) => setBorrowModal({ ...borrowModal, unit: event.target.value })}
-                >
-                  <option value="days">Days</option>
-                  <option value="hours">Hours</option>
-                </select>
               </label>
             </div>
             <div className="hero-actions" style={{ marginTop: '1.5rem' }}>
@@ -501,7 +509,8 @@ export default function Catalog() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -24,10 +24,11 @@ export const getBorrows = () => api.get('/api/borrows');
 export const getMyBorrows = () => api.get('/api/borrows/mine');
 export const getOverdueBorrows = () => api.get('/api/borrows/overdue');
 export const getPendingReturns = () => api.get('/api/borrows/pending');
-export const borrowBook = (bookId, borrowDuration, borrowUnit) => api.post('/api/borrows', {
+export const borrowBook = (bookId, borrowDuration, borrowUnit, dueDate) => api.post('/api/borrows', {
   book_id: bookId,
   borrow_duration: borrowDuration,
   borrow_unit: borrowUnit,
+  due_date: dueDate,
 });
 export const returnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/return`);
 export const requestReturnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/return`);
