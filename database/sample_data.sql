@@ -16,14 +16,14 @@ INSERT INTO users (student_id, name, email, password, role) VALUES
 -- ============================================
 -- INSERT SAMPLE BOOKS
 -- ============================================
-INSERT INTO books (title, author, genre, quantity, available_quantity, description) VALUES
-('To Kill a Mockingbird', 'Harper Lee', 'Fiction', 5, 3, 'A gripping tale of racial injustice and childhood innocence'),
-('1984', 'George Orwell', 'Dystopian', 4, 2, 'A dark future society under totalitarian rule'),
-('The Great Gatsby', 'F. Scott Fitzgerald', 'Fiction', 6, 4, 'A classic American novel set in the Jazz Age'),
-('Pride and Prejudice', 'Jane Austen', 'Romance', 3, 2, 'A witty exploration of love and marriage'),
-('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', 4, 3, 'A young man\'s journey through New York City'),
-('Python Programming', 'Mark Lutz', 'Technical', 2, 2, 'Comprehensive guide to Python'),
-('Clean Code', 'Robert Martin', 'Technical', 3, 1, 'A guide to writing better code');
+INSERT INTO books (title, author, genre, quantity, available_quantity, description, image) VALUES
+('To Kill a Mockingbird', 'Harper Lee', 'Fiction', 5, 3, 'A gripping tale of racial injustice and childhood innocence', 'https://covers.openlibrary.org/b/isbn/9780446310789-L.jpg'),
+('1984', 'George Orwell', 'Dystopian', 4, 2, 'A dark future society under totalitarian rule', 'https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg'),
+('The Great Gatsby', 'F. Scott Fitzgerald', 'Fiction', 6, 4, 'A classic American novel set in the Jazz Age', 'https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg'),
+('Pride and Prejudice', 'Jane Austen', 'Romance', 3, 2, 'A witty exploration of love and marriage', 'https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg'),
+('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', 4, 3, 'A young man\'s journey through New York City', 'https://covers.openlibrary.org/b/isbn/9780316769174-L.jpg'),
+('Python Programming', 'Mark Lutz', 'Technical', 2, 2, 'Comprehensive guide to Python', 'https://covers.openlibrary.org/b/isbn/9781449355739-L.jpg'),
+('Clean Code', 'Robert Martin', 'Technical', 3, 1, 'A guide to writing better code', 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg');
 
 -- ============================================
 -- INSERT SAMPLE BORROW RECORDS
