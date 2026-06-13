@@ -1,4 +1,5 @@
 import sys
+from datetime import timedelta
 from pathlib import Path
 from flask import Flask, send_from_directory
 from flask_cors import CORS
@@ -36,6 +37,21 @@ def _apply_schema_upgrades(app):
         return
 
     schema_name = app.config.get('DB_NAME') or app.config['SQLALCHEMY_DATABASE_URI'].rsplit('/', 1)[-1]
+
+    # Check if failed_login_attempts column exists on users table
+    exists = db.session.execute(
+        text(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'users' "
+            "AND COLUMN_NAME = 'failed_login_attempts'"
+        ),
+        {'schema': schema_name},
+    ).scalar()
+    if not exists:
+        db.session.execute(
+            text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0 NOT NULL"),
+        )
+
     for column_name in ('return_request_date', 'actual_return_date', 'due_date'):
         exists = db.session.execute(
             text(
@@ -90,6 +106,9 @@ def _apply_schema_upgrades(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=25)
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
     CORS(app, supports_credentials=True, origins=[
         'http://localhost:3000',

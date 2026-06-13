@@ -44,6 +44,40 @@ export default function Layout({ children }) {
     return () => clearInterval(interval);
   }, [user]);
 
+  React.useEffect(() => {
+    if (!user) return;
+
+    let idleTimeout;
+
+    const resetTimer = () => {
+      clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(async () => {
+        try {
+          await logout();
+        } catch {
+          /* session already dead */
+        }
+        clearAuth();
+        navigate('/');
+        window.location.reload();
+      }, 25 * 60 * 1000);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(idleTimeout);
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user, navigate]);
+
   const handleLogout = async () => {
     try {
       await logout();

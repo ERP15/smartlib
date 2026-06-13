@@ -306,7 +306,7 @@ export default function Catalog() {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        height: '220px',
+        height: '500px',
         padding: '1.25rem 1.5rem',
         borderRadius: '16px',
         position: 'relative',

@@ -323,6 +323,8 @@ def update_user(user_id):
         user.role = data['role']
     if 'is_active' in data:
         user.is_active = bool(data['is_active'])
+        if user.is_active:
+            user.failed_login_attempts = 0
         
     db.session.commit()
     return jsonify({'message': 'User updated successfully', 'user': user_to_dict(user)}), 200

@@ -89,12 +89,28 @@ def login():
     if not user:
         return _error('Invalid credentials', 401)
 
-    if not bcrypt.check_password_hash(user.password, password):
-        return _error('Invalid credentials', 401)
-
+    # Check if user is active
     if not user.is_active:
+        if user.failed_login_attempts >= 3:
+            return _error('Your account has been deactivated due to too many failed login attempts. Please contact an administrator.', 403)
         return _error('Your account has been deactivated.', 403)
 
+    if not bcrypt.check_password_hash(user.password, password):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= 3:
+            user.is_active = False
+            db.session.commit()
+            return _error('Invalid credentials. Too many failed login attempts. Your account has been deactivated.', 403)
+        
+        db.session.commit()
+        attempts_left = 3 - user.failed_login_attempts
+        return _error(f'Invalid credentials. You have {attempts_left} attempts remaining before account deactivation.', 401)
+
+    # Reset attempts on successful login
+    user.failed_login_attempts = 0
+    db.session.commit()
+
+    session.permanent = True
     session['user_id'] = user.id
     session['role'] = user.role
 

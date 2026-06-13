@@ -12,6 +12,7 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='student', nullable=False)
     is_active = db.Column(db.Boolean, default=True)
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     updated_at = db.Column(
         db.DateTime,
