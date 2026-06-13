@@ -44,6 +44,24 @@ def list_books():
     return jsonify({'books': [book_to_dict(b) for b in books]}), 200
 
 
+@books_bp.route('/debug/all-books', methods=['GET'])
+def debug_all_books():
+    """Debug endpoint - shows all books with normalized author/genre"""
+    books = Book.query.all()
+    debug_books = []
+    for b in books:
+        debug_books.append({
+            'id': b.id,
+            'title': b.title,
+            'author': b.author,
+            'author_normalized': _normalize(b.author or ''),
+            'genre': b.genre,
+            'genre_normalized': _normalize(b.genre or ''),
+            'available_quantity': b.available_quantity,
+        })
+    return jsonify({'books': debug_books}), 200
+
+
 @books_bp.route('/<int:book_id>', methods=['GET'])
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
@@ -86,8 +104,11 @@ def recommend_books():
     author_counts = Counter()
     for record in history:
         if record.book:
-            genre_counts[(record.book.genre or '').strip().lower()] += 1
-            author_counts[(record.book.author or '').strip().lower()] += 1
+            # Use normalized versions for consistent matching with special characters
+            genre_norm = _normalize(record.book.genre or '')
+            author_norm = _normalize(record.book.author or '')
+            genre_counts[genre_norm] += 1
+            author_counts[author_norm] += 1
 
     popularity_rows = (
         db.session.query(
@@ -107,15 +128,17 @@ def recommend_books():
     for book in query.all():
         score = 0
         reasons = []
-        genre_key = (book.genre or '').strip().lower()
-        author_key = (book.author or '').strip().lower()
+        # Use normalized versions for consistent matching
+        genre_key_norm = _normalize(book.genre or '')
+        author_key_norm = _normalize(book.author or '')
 
-        genre_hits = genre_counts.get(genre_key, 0)
+        # Check history matches using normalized keys
+        genre_hits = genre_counts.get(genre_key_norm, 0)
         if genre_hits:
             score += genre_hits * 5
             reasons.append(f"Matches your {book.genre} borrowing history")
 
-        author_hits = author_counts.get(author_key, 0)
+        author_hits = author_counts.get(author_key_norm, 0)
         if author_hits:
             score += author_hits * 6
             reasons.append(f"Same author as books you've borrowed: {book.author}")
@@ -250,10 +273,13 @@ def update_book(book_id):
 def delete_book(book_id):
     book = Book.query.get_or_404(book_id)
     try:
+        # Delete all associated borrow records first (cascade behavior)
+        BorrowRecord.query.filter_by(book_id=book_id).delete()
+        # Then delete the book
         db.session.delete(book)
         db.session.commit()
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.session.rollback()
-        return _error('Could not delete book (active loans may exist)', 500)
+        return _error(f'Could not delete book: {str(e)}', 500)
 
-    return jsonify({'message': 'Book deleted'}), 200
+    return jsonify({'message': 'Book deleted successfully'}), 200

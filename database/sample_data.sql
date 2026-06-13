@@ -23,7 +23,8 @@ INSERT INTO books (title, author, genre, quantity, available_quantity, descripti
 ('Pride and Prejudice', 'Jane Austen', 'Romance', 3, 2, 'A witty exploration of love and marriage', 'https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg'),
 ('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', 4, 3, 'A young man\'s journey through New York City', 'https://covers.openlibrary.org/b/isbn/9780316769174-L.jpg'),
 ('Python Programming', 'Mark Lutz', 'Technical', 2, 2, 'Comprehensive guide to Python', 'https://covers.openlibrary.org/b/isbn/9781449355739-L.jpg'),
-('Clean Code', 'Robert Martin', 'Technical', 3, 1, 'A guide to writing better code', 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg');
+('Clean Code', 'Robert Martin', 'Technical', 3, 1, 'A guide to writing better code', 'https://covers.openlibrary.org/b/isbn/9780132350884-L.jpg'),
+('El Filibusterismo', 'Jose Rizal', 'History', 4, 3, 'A novel about the Philippines during Spanish colonial period', NULL);
 
 -- ============================================
 -- INSERT SAMPLE BORROW RECORDS

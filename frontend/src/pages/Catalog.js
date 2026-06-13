@@ -22,6 +22,18 @@ function normalizeBook(entry) {
   return entry?.book || entry;
 }
 
+// Normalize text to match backend implementation (remove accents/diacritics)
+function normalizeText(text) {
+  if (!text) return '';
+  // Use NFD (same as backend's NFKD for most Latin characters)
+  // This removes accents and special characters
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 export default function Catalog() {
   const navigate = useNavigate();
   const user = getUser();
@@ -78,6 +90,22 @@ export default function Catalog() {
       setRecommendationLoading(false);
     }
   }, []);
+
+  // Auto-refresh recommendations and books when page becomes visible
+  // This ensures newly added books by admin appear on student's catalog
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadBooks(query.trim());
+        if (user) {
+          loadRecommendations();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, query]);
 
   // Lock background page scroll when modal is active
   useEffect(() => {
@@ -379,18 +407,18 @@ export default function Catalog() {
                   <div style={{ display: 'grid', gap: '1rem' }}>
                     {/* Matches Section */}
                     {(aiAuthor.trim() !== '' || aiGenre.trim() !== '') && (() => {
-                      const filterAuthorNorm = aiAuthor.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                      const filterGenreNorm = aiGenre.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                      const filterAuthorNorm = normalizeText(aiAuthor);
+                      const filterGenreNorm = normalizeText(aiGenre);
 
                       const isAuthorMatch = (b) => {
                         if (!filterAuthorNorm) return false;
-                        const bookAuthorNorm = (b.author || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                        const bookAuthorNorm = normalizeText(b.author);
                         return bookAuthorNorm.includes(filterAuthorNorm) || filterAuthorNorm.includes(bookAuthorNorm);
                       };
 
                       const isGenreMatch = (b) => {
                         if (!filterGenreNorm) return false;
-                        const bookGenreNorm = (b.genre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                        const bookGenreNorm = normalizeText(b.genre);
                         if (filterGenreNorm === 'history' && bookGenreNorm.includes('historical')) return true;
                         if (filterGenreNorm === 'historical' && bookGenreNorm.includes('history')) return true;
                         return bookGenreNorm.includes(filterGenreNorm) || filterGenreNorm.includes(bookGenreNorm);
@@ -479,18 +507,18 @@ export default function Catalog() {
                           .filter(rec => {
                             if (aiAuthor.trim() === '' && aiGenre.trim() === '') return true;
                             const b = normalizeBook(rec);
-                            const filterAuthorNorm = aiAuthor.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                            const filterGenreNorm = aiGenre.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            const filterAuthorNorm = normalizeText(aiAuthor);
+                            const filterGenreNorm = normalizeText(aiGenre);
 
                             const isAuthorMatch = () => {
                               if (!filterAuthorNorm) return false;
-                              const bookAuthorNorm = (b.author || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                              const bookAuthorNorm = normalizeText(b.author);
                               return bookAuthorNorm.includes(filterAuthorNorm) || filterAuthorNorm.includes(bookAuthorNorm);
                             };
 
                             const isGenreMatch = () => {
                               if (!filterGenreNorm) return false;
-                              const bookGenreNorm = (b.genre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                              const bookGenreNorm = normalizeText(b.genre);
                               if (filterGenreNorm === 'history' && bookGenreNorm.includes('historical')) return true;
                               if (filterGenreNorm === 'historical' && bookGenreNorm.includes('history')) return true;
                               return bookGenreNorm.includes(filterGenreNorm) || filterGenreNorm.includes(bookGenreNorm);

@@ -207,12 +207,17 @@ export default function AdminDashboard() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this book?')) return;
+    setError(null);
+    setMessage(null);
     try {
-      await deleteBook(id);
-      setMessage('Book deleted.');
-      await loadAll();
+      const response = await deleteBook(id);
+      console.log('Delete response:', response);
+      setMessage('Book deleted successfully.');
+      // Reload books list
+      await loadBooks(search);
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not delete book');
+      console.error('Delete error:', err);
+      setError(err.response?.data?.error || err.message || 'Could not delete book');
     }
   };
 
