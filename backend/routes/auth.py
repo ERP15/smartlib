@@ -92,6 +92,9 @@ def login():
     if not bcrypt.check_password_hash(user.password, password):
         return _error('Invalid credentials', 401)
 
+    if not user.is_active:
+        return _error('Your account has been deactivated.', 403)
+
     session['user_id'] = user.id
     session['role'] = user.role
 

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { borrowBook, getBooks, getRecommendations } from '../services/api';
 import { getUser } from '../utils/auth';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:5000` : 'http://127.0.0.1:5000');
 const DEFAULT_BORROW_DAYS = 14;
 const FEATURED_GENRES = ['All', 'Fiction', 'Technical', 'Romance', 'History', 'Dystopian', 'Reference'];
 
@@ -159,7 +159,14 @@ export default function Catalog() {
 
     // 1. Genre filter
     if (selectedGenre !== 'All') {
-      result = result.filter(book => (book.genre || '').toLowerCase() === selectedGenre.toLowerCase());
+      result = result.filter(book => {
+        const genreStr = (book.genre || '').toLowerCase();
+        const filterStr = selectedGenre.toLowerCase();
+        if (filterStr === 'history') {
+          return genreStr.includes('history') || genreStr.includes('historical');
+        }
+        return genreStr.includes(filterStr);
+      });
     }
 
     // 2. Availability filter
@@ -353,11 +360,9 @@ export default function Catalog() {
                   <button type="submit" className="btn btn-primary" disabled={aiLoading || recommendationLoading}>
                     {aiLoading ? 'AI Thinking...' : 'Compute Matches'}
                   </button>
-                  {(aiGenre || aiAuthor) && (
-                    <button type="button" className="btn btn-ghost" onClick={handleResetAI} disabled={aiLoading}>
-                      Reset AI Filters
-                    </button>
-                  )}
+                  <button type="button" className="btn btn-ghost" onClick={handleResetAI} disabled={aiLoading || recommendationLoading}>
+                    Reset AI Filters
+                  </button>
                 </div>
               </form>
             </div>
@@ -371,46 +376,178 @@ export default function Catalog() {
                 ) : recommendations.length === 0 ? (
                   <p className="muted" style={{ padding: '1rem 0' }}>No personalized recommendations found. Try adjusting parameters or borrow books to build history.</p>
                 ) : (
-                  <div style={{ display: 'grid', gap: '0.75rem' }}>
-                    {recommendations.slice(0, 3).map((rec) => {
-                      const b = normalizeBook(rec);
+                  <div style={{ display: 'grid', gap: '1rem' }}>
+                    {/* Matches Section */}
+                    {(aiAuthor.trim() !== '' || aiGenre.trim() !== '') && (() => {
+                      const filterAuthorNorm = aiAuthor.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                      const filterGenreNorm = aiGenre.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+                      const isAuthorMatch = (b) => {
+                        if (!filterAuthorNorm) return false;
+                        const bookAuthorNorm = (b.author || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                        return bookAuthorNorm.includes(filterAuthorNorm) || filterAuthorNorm.includes(bookAuthorNorm);
+                      };
+
+                      const isGenreMatch = (b) => {
+                        if (!filterGenreNorm) return false;
+                        const bookGenreNorm = (b.genre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                        if (filterGenreNorm === 'history' && bookGenreNorm.includes('historical')) return true;
+                        if (filterGenreNorm === 'historical' && bookGenreNorm.includes('history')) return true;
+                        return bookGenreNorm.includes(filterGenreNorm) || filterGenreNorm.includes(bookGenreNorm);
+                      };
+
+                      const isBookMatch = (b) => {
+                        if (filterAuthorNorm && filterGenreNorm) {
+                          return isAuthorMatch(b) || isGenreMatch(b);
+                        }
+                        if (filterAuthorNorm) return isAuthorMatch(b);
+                        if (filterGenreNorm) return isGenreMatch(b);
+                        return false;
+                      };
+
+                      const matches = recommendations.filter(rec => isBookMatch(normalizeBook(rec)));
+
+                      let heading = '✓ Matches';
+                      if (aiAuthor.trim() !== '' && aiGenre.trim() === '') heading = '✓ Author Matches';
+                      if (aiAuthor.trim() === '' && aiGenre.trim() !== '') heading = '✓ Genre Matches';
+
+                      let noMatchesMsg = 'No books found matching your criteria.';
+                      if (aiAuthor.trim() !== '' && aiGenre.trim() === '') noMatchesMsg = 'No books found by this author.';
+                      if (aiAuthor.trim() === '' && aiGenre.trim() !== '') noMatchesMsg = 'No books found in this genre.';
+
                       return (
-                        <div 
-                          key={b.id} 
-                          onClick={() => openBorrowModal(b)}
-                          style={{ 
-                            display: 'flex', 
-                            gap: '1rem', 
-                            alignItems: 'center', 
-                            padding: '0.75rem', 
-                            borderRadius: '12px', 
-                            background: 'rgba(255,255,255,0.02)',
-                            border: '1px solid var(--border)',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s, border-color 0.2s'
-                          }}
-                          className="aside-list-item"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
-                            e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                          }}
-                        >
-                          {resolveImageUrl(b.image) ? (
-                            <img src={resolveImageUrl(b.image)} alt={b.title} style={{ width: '40px', height: '56px', objectFit: 'cover', borderRadius: '6px' }} />
+                        <div>
+                          <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {heading}
+                          </h4>
+                          {matches.length === 0 ? (
+                            <p className="muted" style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>{noMatchesMsg}</p>
                           ) : (
-                            <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
+                            <div style={{ display: 'grid', gap: '0.5rem' }}>
+                              {matches.map(rec => {
+                                const b = normalizeBook(rec);
+                                return (
+                                  <div 
+                                    key={b.id} 
+                                    onClick={() => openBorrowModal(b)}
+                                    style={{ 
+                                      display: 'flex', 
+                                      gap: '1rem', 
+                                      alignItems: 'center', 
+                                      padding: '0.75rem', 
+                                      borderRadius: '12px', 
+                                      background: 'rgba(255,255,255,0.02)',
+                                      border: '1px solid var(--border)',
+                                      cursor: 'pointer',
+                                      transition: 'background 0.2s, border-color 0.2s'
+                                    }}
+                                    className="aside-list-item"
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
+                                      e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                                      e.currentTarget.style.borderColor = 'var(--border)';
+                                    }}
+                                  >
+                                    {resolveImageUrl(b.image) ? (
+                                      <img src={resolveImageUrl(b.image)} alt={b.title} style={{ width: '40px', height: '56px', objectFit: 'cover', borderRadius: '6px' }} />
+                                    ) : (
+                                      <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
+                                    )}
+                                    <div style={{ flex: 1 }}>
+                                      <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 'bold' }}>100% Match</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
-                          <div style={{ flex: 1 }}>
-                            <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{getMatchScore(rec.score)}</span>
-                          </div>
                         </div>
                       );
-                    })}
+                    })()}
+
+                    {/* Related Books Section */}
+                    <div>
+                      <h4 style={{ margin: '0.5rem 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        📚 Related Books You May Like
+                      </h4>
+                      <div style={{ display: 'grid', gap: '0.5rem' }}>
+                        {recommendations
+                          .filter(rec => {
+                            if (aiAuthor.trim() === '' && aiGenre.trim() === '') return true;
+                            const b = normalizeBook(rec);
+                            const filterAuthorNorm = aiAuthor.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            const filterGenreNorm = aiGenre.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+                            const isAuthorMatch = () => {
+                              if (!filterAuthorNorm) return false;
+                              const bookAuthorNorm = (b.author || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                              return bookAuthorNorm.includes(filterAuthorNorm) || filterAuthorNorm.includes(bookAuthorNorm);
+                            };
+
+                            const isGenreMatch = () => {
+                              if (!filterGenreNorm) return false;
+                              const bookGenreNorm = (b.genre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                              if (filterGenreNorm === 'history' && bookGenreNorm.includes('historical')) return true;
+                              if (filterGenreNorm === 'historical' && bookGenreNorm.includes('history')) return true;
+                              return bookGenreNorm.includes(filterGenreNorm) || filterGenreNorm.includes(bookGenreNorm);
+                            };
+
+                            const isBookMatch = () => {
+                              if (filterAuthorNorm && filterGenreNorm) {
+                                return isAuthorMatch() || isGenreMatch();
+                              }
+                              if (filterAuthorNorm) return isAuthorMatch();
+                              if (filterGenreNorm) return isGenreMatch();
+                              return false;
+                            };
+
+                            return !isBookMatch();
+                          })
+                          .slice(0, 3)
+                          .map(rec => {
+                            const b = normalizeBook(rec);
+                            return (
+                              <div 
+                                key={b.id} 
+                                onClick={() => openBorrowModal(b)}
+                                style={{ 
+                                  display: 'flex', 
+                                  gap: '1rem', 
+                                  alignItems: 'center', 
+                                  padding: '0.75rem', 
+                                  borderRadius: '12px', 
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid var(--border)',
+                                  cursor: 'pointer',
+                                  transition: 'background 0.2s, border-color 0.2s'
+                                }}
+                                className="aside-list-item"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
+                                  e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                                  e.currentTarget.style.borderColor = 'var(--border)';
+                                }}
+                              >
+                                {resolveImageUrl(b.image) ? (
+                                  <img src={resolveImageUrl(b.image)} alt={b.title} style={{ width: '40px', height: '56px', objectFit: 'cover', borderRadius: '6px' }} />
+                                ) : (
+                                  <div style={{ width: '40px', height: '56px', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>{b.title.slice(0, 1)}</div>
+                                )}
+                                <div style={{ flex: 1 }}>
+                                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)' }} className="book-title">{b.title}</h4>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

@@ -91,9 +91,8 @@ export default function Register() {
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               placeholder="1234-ABCDE-PQ-0"
-              pattern="[A-Za-z0-9]{4}-[A-Za-z0-9]{5}-PQ-0"
-              title="Format: XXXX-XXXXX-PQ-0"
               className="input"
+              required
             />
             <small className="field-hint">Format: XXXX-XXXXX-PQ-0</small>
           </label>
@@ -104,17 +103,18 @@ export default function Register() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Full name"
               className="input"
+              required
             />
           </label>
           <label className="field">
             <span>Email address</span>
             <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="samplename@iskolarngbayan.pup.edu.ph"
-              pattern="[^@\\s]+@iskolarngbayan\.pup\.edu\.ph"
-              title="Use your @iskolarngbayan.pup.edu.ph email"
               className="input"
+              required
             />
             <small className="field-hint">Use your @iskolarngbayan.pup.edu.ph email</small>
           </label>
@@ -128,6 +128,7 @@ export default function Register() {
                 minLength={8}
                 placeholder="At least 8 characters"
                 className="input"
+                required
               />
               <button
                 type="button"

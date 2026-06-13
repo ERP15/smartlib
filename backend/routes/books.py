@@ -1,4 +1,5 @@
 import os
+import unicodedata
 from collections import Counter
 from pathlib import Path
 from flask import Blueprint, request, jsonify
@@ -49,12 +50,24 @@ def get_book(book_id):
     return jsonify({'book': book_to_dict(book)}), 200
 
 
+def _normalize(text):
+    if not text:
+        return ""
+    # Remove accents/diacritics and convert to lowercase
+    nfkd_form = unicodedata.normalize('NFKD', text)
+    return "".join([c for c in nfkd_form if not unicodedata.combining(c)]).lower().strip()
+
+
 @books_bp.route('/recommendations', methods=['GET'])
 @login_required
 def recommend_books():
     user = get_current_user()
-    genre_filter = (request.args.get('genre') or '').strip().lower()
-    author_filter = (request.args.get('author') or '').strip().lower()
+    genre_filter = (request.args.get('genre') or '').strip()
+    author_filter = (request.args.get('author') or '').strip()
+    
+    genre_filter_norm = _normalize(genre_filter)
+    author_filter_norm = _normalize(author_filter)
+
     try:
         limit = int(request.args.get('limit', 6))
     except (TypeError, ValueError):
@@ -107,13 +120,25 @@ def recommend_books():
             score += author_hits * 6
             reasons.append(f"Same author as books you've borrowed: {book.author}")
 
-        if genre_filter and genre_key == genre_filter:
-            score += 8
-            reasons.append(f"Matches requested genre: {request.args.get('genre')}")
+        if genre_filter_norm:
+            book_genre_norm = _normalize(book.genre)
+            is_genre_match = False
+            if genre_filter_norm in book_genre_norm or book_genre_norm in genre_filter_norm:
+                is_genre_match = True
+            elif genre_filter_norm == 'history' and 'historical' in book_genre_norm:
+                is_genre_match = True
+            elif genre_filter_norm == 'historical' and 'history' in book_genre_norm:
+                is_genre_match = True
 
-        if author_filter and author_key == author_filter:
-            score += 8
-            reasons.append(f"Matches requested author: {request.args.get('author')}")
+            if is_genre_match:
+                score += 50
+                reasons.append(f"Matches requested genre: {genre_filter}")
+
+        if author_filter_norm:
+            book_author_norm = _normalize(book.author)
+            if author_filter_norm in book_author_norm or book_author_norm in author_filter_norm:
+                score += 50
+                reasons.append(f"Matches requested author: {author_filter}")
 
         borrow_popularity = popularity.get(book.id, 0)
         if borrow_popularity:

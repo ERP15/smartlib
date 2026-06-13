@@ -24,7 +24,10 @@ export default function Login() {
       setUser(user);
       navigate(homePathForRole(user.role));
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(
+        err.response?.data?.error ||
+        (err.message === 'Network Error' ? 'Cannot reach server — is the backend running on port 5000?' : 'Login failed')
+      );
     }
   };
 
