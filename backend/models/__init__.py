@@ -51,7 +51,7 @@ class BorrowRecord(db.Model):
     due_date = db.Column(db.DateTime, nullable=False)
     return_request_date = db.Column(db.DateTime, nullable=True)
     actual_return_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default='borrowed', nullable=False)
+    status = db.Column(db.String(20), default='loans', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     updated_at = db.Column(
         db.DateTime,

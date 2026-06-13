@@ -337,7 +337,7 @@ export default function AdminDashboard() {
         <div>
           <p className="eyebrow">Staff portal</p>
           <h1>Admin dashboard</h1>
-          <p className="subhead">Manage books, loans, and overdue items.</p>
+          <p className="subhead">Manage books, borrows, and overdue items.</p>
         </div>
         <button
           type="button"
@@ -367,7 +367,7 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="stat-number">{stats.active_borrows}</span>
-                <span className="stat-label">Active Loans</span>
+                <span className="stat-label">Active Borrowed</span>
               </div>
               <span style={{ fontSize: '1.75rem', color: 'var(--accent)' }}>📖</span>
             </div>
@@ -555,16 +555,16 @@ export default function AdminDashboard() {
               <thead>
                 <tr>
                   <th>Borrower</th>
-                  <th>Book Borrowed</th>
+                  <th>Borrowed Book</th>
                   <th>Due Date</th>
-                  <th>Loan Status</th>
+                  <th>Borrow Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {borrows.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No loans records in database.</td>
+                    <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No borrow records in database.</td>
                   </tr>
                 ) : (
                   borrows.map((b) => (
@@ -657,13 +657,13 @@ export default function AdminDashboard() {
             <div>
               <h2>Active Overdue Tracking</h2>
               <p className="subhead" style={{ marginTop: '0.25rem' }}>
-                System marks loans overdue automatically based on time matrix.
+                System marks borrows overdue automatically based on time matrix.
               </p>
             </div>
             <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>Execute Run-Check</button>
           </div>
           {overdue.length === 0 ? (
-            <p className="muted" style={{ padding: '2rem 0', textAlign: 'center' }}>No overdue loans currently recorded.</p>
+            <p className="muted" style={{ padding: '2rem 0', textAlign: 'center' }}>No overdue borrows currently recorded.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
@@ -858,7 +858,7 @@ export default function AdminDashboard() {
           <div className="admin-grid">
             <section className="panel" style={{ flex: 1.2 }}>
               <h2>Most Borrowed Collection Books</h2>
-              {reports.most_borrowed_books.length === 0 ? (
+              {reports.most_loans_books.length === 0 ? (
                 <p className="muted" style={{ padding: '1rem 0' }}>No borrow data generated yet.</p>
               ) : (
                 <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
@@ -872,7 +872,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reports.most_borrowed_books.map((book) => (
+                      {reports.most_loans_books.map((book) => (
                         <tr key={book.book_id}>
                           <td>
                             <strong>{book.title}</strong>
@@ -895,7 +895,7 @@ export default function AdminDashboard() {
                 <span className="status danger" style={{ fontSize: '0.75rem' }}>{reports.summary.overdue_count} Overdue</span>
               </div>
               {reports.overdue_reports.length === 0 ? (
-                <p className="muted" style={{ padding: '1rem 0' }}>No overdue loans currently active.</p>
+                <p className="muted" style={{ padding: '1rem 0' }}>No overdue borrows currently active.</p>
               ) : (
                 <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
                   <table className="data-table">

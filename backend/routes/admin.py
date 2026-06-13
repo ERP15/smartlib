@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 admin_bp = Blueprint('admin', __name__)
-ACTIVE_STATUSES = ('borrowed', 'overdue', 'pending_return')
+ACTIVE_STATUSES = ('loans', 'overdue', 'pending_return')
 
 
 @admin_bp.route('/dashboard', methods=['GET'])
@@ -71,7 +71,7 @@ def _collect_reports_data():
     )
     available_copies = db.session.query(func.coalesce(func.sum(Book.available_quantity), 0)).scalar() or 0
 
-    most_borrowed_books = (
+    most_loans_books = (
         db.session.query(
             Book.id.label('book_id'),
             Book.title,
@@ -167,7 +167,7 @@ def _collect_reports_data():
             'available_copies': int(available_copies),
             'average_borrows_per_user': average_borrows_per_user,
         },
-        'most_borrowed_books': [
+        'most_loans_books': [
             {
                 'book_id': row.book_id,
                 'title': row.title,
@@ -177,7 +177,7 @@ def _collect_reports_data():
                 'active_count': int(row.active_count or 0),
                 'overdue_count': int(row.overdue_count or 0),
             }
-            for row in most_borrowed_books
+            for row in most_loans_books
         ],
         'overdue_reports': [borrow_to_dict(record, include_user=True) for record in overdue_reports],
         'user_statistics': {
@@ -226,9 +226,9 @@ def export_reports():
         for k, v in s.items():
             ws.append([k, v])
 
-        # Most borrowed
-        mb = data.get('most_borrowed_books', [])
-        ws2 = wb.create_sheet('MostBorrowed')
+        # Most loans
+        mb = data.get('most_loans_books', [])
+        ws2 = wb.create_sheet('Mostloans')
         ws2.append(['Title', 'Author', 'Genre', 'Borrows', 'Active', 'Overdue'])
         for b in mb:
             ws2.append([b.get('title'), b.get('author'), b.get('genre'), b.get('borrow_count'), b.get('active_count'), b.get('overdue_count')])
@@ -264,10 +264,10 @@ def export_reports():
 
     y -= 10
     p.setFont('Helvetica-Bold', 12)
-    p.drawString(40, y, 'Most borrowed books')
+    p.drawString(40, y, 'Most loans books')
     y -= 18
     p.setFont('Helvetica', 10)
-    for b in data.get('most_borrowed_books', []):
+    for b in data.get('most_loans_books', []):
         if y < 80:
             p.showPage(); y = height - 40
         p.drawString(40, y, f"{b.get('title')} — {b.get('borrow_count')} borrows")

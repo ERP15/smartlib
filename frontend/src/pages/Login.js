@@ -40,7 +40,7 @@ export default function Login() {
           <p className="subhead">
             {role === 'admin'
               ? 'Admin users can log in here to manage books and borrowing.'
-              : 'Log in to manage loans, renewals, and recommendations.'}
+              : 'Log in to manage borrowed books, renewals, and recommendations.'}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="form">

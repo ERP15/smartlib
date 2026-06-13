@@ -68,7 +68,9 @@ export default function Layout({ children }) {
                 <NavLink to="/admin">Admin Dashboard</NavLink>
               )}
               <NavLink to="/catalog">Books</NavLink>
-              <NavLink to="/my-loans">Borrowed</NavLink>
+              {user.role === 'student' && (
+                <NavLink to="/my-borrowed">Borrowed</NavLink>
+              )}
               <NavLink to="/profile">Profile</NavLink>
               <span className="nav-user">{user.name}</span>
               <button type="button" className="btn btn-ghost btn-small" onClick={handleLogout}>

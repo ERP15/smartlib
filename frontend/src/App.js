@@ -5,7 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Catalog from './pages/Catalog';
-import MyLoans from './pages/MyLoans';
+import MyBorrowed from './pages/MyBorrowed';
 import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
 import { getUser, homePathForRole } from './utils/auth';
@@ -26,7 +26,7 @@ function Home() {
           <p className="eyebrow">SmartLib Library System</p>
           <h1>A modern academic library experience for students and schools.</h1>
           <p className="subhead">
-            Browse a well-organized collection of books, track your loans, and manage library activity with a clean professional interface.
+            Browse a well-organized collection of books, track your borrowed books, and manage library activity with a clean professional interface.
           </p>
           <div className="hero-actions">
             <button type="button" className="btn btn-primary landing-cta" onClick={() => setShowPicker(true)}>
@@ -94,10 +94,10 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route
-          path="/my-loans"
+          path="/my-borrowed"
           element={
             <ProtectedRoute>
-              <MyLoans />
+              <MyBorrowed />
             </ProtectedRoute>
           }
         />

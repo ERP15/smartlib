@@ -14,7 +14,7 @@ def mark_overdue_records():
         return value
 
     overdue = BorrowRecord.query.filter(
-        BorrowRecord.status == 'borrowed',
+        BorrowRecord.status == 'loans',
         BorrowRecord.actual_return_date.is_(None),
         BorrowRecord.due_date < now,
     ).all()

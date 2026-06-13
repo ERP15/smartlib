@@ -299,17 +299,14 @@ export default function Catalog() {
     <div className="page catalog-page fade-in">
       {/* Hero Section */}
       <section className="catalog-hero surface-card" style={{
-        backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.65)), url("/library_hero_bg.png")',
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
+        background: 'linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.65)), url("/library_hero_bg.png") center/100% 100% no-repeat',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        height: '500px',
+        height: '220px',
         padding: '1.25rem 1.5rem',
         borderRadius: '16px',
         position: 'relative',

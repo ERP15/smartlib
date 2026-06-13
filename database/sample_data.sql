@@ -29,10 +29,10 @@ INSERT INTO books (title, author, genre, quantity, available_quantity, descripti
 -- INSERT SAMPLE BORROW RECORDS
 -- ============================================
 INSERT INTO borrow_records (user_id, book_id, due_date, actual_return_date, status) VALUES
-(1, 1, '2026-06-20 09:00:00', NULL, 'borrowed'),
+(1, 1, '2026-06-20 09:00:00', NULL, 'loans'),
 (2, 2, '2026-06-10 14:30:00', NULL, 'overdue'),
 (3, 3, '2026-05-25 16:00:00', '2026-05-24 10:15:00', 'returned'),
-(1, 4, '2026-06-15 11:45:00', NULL, 'borrowed');
+(1, 4, '2026-06-15 11:45:00', NULL, 'loans');
 
 -- ============================================
 -- INSERT SAMPLE RECOMMENDATIONS

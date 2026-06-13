@@ -136,7 +136,7 @@ def borrow_book():
     active = BorrowRecord.query.filter(
         BorrowRecord.user_id == user.id,
         BorrowRecord.book_id == book.id,
-        BorrowRecord.status.in_(('borrowed', 'overdue', 'pending_return')),
+        BorrowRecord.status.in_(('loans', 'overdue', 'pending_return')),
     ).first()
     if active:
         return _error('You already have an active loan for this book', 409)
@@ -145,7 +145,7 @@ def borrow_book():
         user_id=user.id,
         book_id=book.id,
         due_date=due,
-        status='borrowed',
+        status='loans',
     )
     book.available_quantity -= 1
 
@@ -157,7 +157,7 @@ def borrow_book():
         return _error('Could not create borrow record', 500)
 
     return jsonify({
-        'message': 'Book borrowed',
+        'message': 'Book loans',
         'borrow': borrow_to_dict(record),
     }), 201
 
@@ -176,7 +176,7 @@ def return_book(borrow_id):
         return _error('Already returned', 409)
 
     if role == 'admin':
-        if record.status not in ('pending_return', 'borrowed', 'overdue'):
+        if record.status not in ('pending_return', 'loans', 'overdue'):
             return _error('No active loan to return', 409)
 
         book = Book.query.get(record.book_id)
@@ -218,7 +218,7 @@ def return_book(borrow_id):
 @staff_required
 def confirm_return(borrow_id):
     record = BorrowRecord.query.get_or_404(borrow_id)
-    if record.status not in ('pending_return', 'borrowed', 'overdue'):
+    if record.status not in ('pending_return', 'loans', 'overdue'):
         return _error('No active loan to return', 409)
 
     book = Book.query.get(record.book_id)
@@ -248,7 +248,7 @@ def reject_return(borrow_id):
 
     record.return_request_date = None
     record.actual_return_date = None
-    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'borrowed'
+    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'loans'
 
     try:
         db.session.commit()

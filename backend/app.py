@@ -80,8 +80,8 @@ def _apply_schema_upgrades(app):
     db.session.execute(
         text(
             "ALTER TABLE borrow_records "
-            "MODIFY COLUMN status ENUM('borrowed','returned','overdue','pending_return') "
-            "DEFAULT 'borrowed'"
+            "MODIFY COLUMN status ENUM('loans','returned','overdue','pending_return') "
+            "DEFAULT 'loans'"
         )
     )
     db.session.commit()

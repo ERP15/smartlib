@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUser, isStaff, setUser } from '../utils/auth';
-import { getMyBorrows, updateProfile } from '../services/api';
+import { updateProfile } from '../services/api';
 
 export default function Profile() {
   const [profileUser, setProfileUser] = useState(getUser());
   const staff = isStaff();
 
-  const [borrows, setBorrows] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: profileUser?.name || '',
@@ -17,24 +15,6 @@ export default function Profile() {
   });
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await getMyBorrows();
-        setBorrows(res.data.borrows || []);
-      } catch (err) {
-        console.error("Failed to load borrows", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (profileUser) {
-      load();
-    } else {
-      setLoading(false);
-    }
-  }, [profileUser]);
 
   useEffect(() => {
     if (isEditing) {
@@ -92,9 +72,11 @@ export default function Profile() {
             <Link className="btn btn-primary" to={staff ? '/admin' : '/catalog'}>
               {staff ? 'Open Dashboard' : 'Browse Books'}
             </Link>
-            <Link className="btn btn-ghost" to="/my-loans">
-              Borrowed
-            </Link>
+            {!staff && (
+              <Link className="btn btn-ghost" to="/my-borrowed">
+                Borrowed
+              </Link>
+            )}
             <button type="button" className="btn btn-ghost" onClick={() => {
               setEditForm({
                 name: profileUser.name,
@@ -120,54 +102,6 @@ export default function Profile() {
             <span className="eyebrow">Username</span>
             <strong>{profileUser.name}</strong>
           </div>
-        </div>
-      </section>
-
-      <section className="profile-grid" style={{ gridTemplateColumns: '1fr' }}>
-        <div className="profile-card">
-          <p className="eyebrow" style={{ color: 'var(--accent)' }}>Recent Borrowing History</p>
-          <h2 style={{ marginBottom: '1.25rem' }}>Latest Borrowed Books</h2>
-          {loading ? (
-            <p className="muted">Loading latest loans...</p>
-          ) : borrows.length === 0 ? (
-            <p className="muted">You haven't borrowed any books yet. Browse books to get started!</p>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {borrows.slice(0, 3).map((b) => (
-                <div 
-                  key={b.id} 
-                  style={{ 
-                    padding: '1.25rem', 
-                    borderRadius: '12px', 
-                    background: 'var(--surface-2)', 
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: '130px'
-                  }}
-                >
-                  <div>
-                    <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`} style={{ marginBottom: '0.5rem' }}>
-                      {b.status}
-                    </span>
-                    <h3 style={{ margin: '0.25rem 0 0', fontSize: '1rem', fontWeight: 'bold', color: 'var(--text)' }}>
-                      {b.book_title}
-                    </h3>
-                    <p style={{ margin: '0.1rem 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
-                      By {b.book_author}
-                    </p>
-                  </div>
-                  <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Due: {new Date(b.due_date).toLocaleDateString()}</span>
-                    {b.actual_return_date && (
-                      <span style={{ color: 'var(--success)' }}>Returned</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </section>
 

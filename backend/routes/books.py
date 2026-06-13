@@ -99,7 +99,7 @@ def recommend_books():
         .order_by(BorrowRecord.borrow_date.desc())
         .all()
     )
-    borrowed_book_ids = {record.book_id for record in history if record.book_id}
+    loans_book_ids = {record.book_id for record in history if record.book_id}
     genre_counts = Counter()
     author_counts = Counter()
     for record in history:
@@ -121,8 +121,8 @@ def recommend_books():
     popularity = {row.book_id: int(row.borrow_count or 0) for row in popularity_rows}
 
     query = Book.query.filter(Book.available_quantity > 0)
-    if borrowed_book_ids:
-        query = query.filter(~Book.id.in_(borrowed_book_ids))
+    if loans_book_ids:
+        query = query.filter(~Book.id.in_(loans_book_ids))
 
     recommendations = []
     for book in query.all():
@@ -141,7 +141,7 @@ def recommend_books():
         author_hits = author_counts.get(author_key_norm, 0)
         if author_hits:
             score += author_hits * 6
-            reasons.append(f"Same author as books you've borrowed: {book.author}")
+            reasons.append(f"Same author as books you've loans: {book.author}")
 
         if genre_filter_norm:
             book_genre_norm = _normalize(book.genre)
@@ -166,7 +166,7 @@ def recommend_books():
         borrow_popularity = popularity.get(book.id, 0)
         if borrow_popularity:
             score += min(borrow_popularity, 10)
-            reasons.append(f"Borrowed {borrow_popularity} times in the library")
+            reasons.append(f"loans {borrow_popularity} times in the library")
 
         if not reasons:
             reasons.append('Available title')
