@@ -6,7 +6,7 @@ export function ProtectedRoute({ children, staffOnly }) {
   if (!user) {
     return <Navigate to="/" replace />;
   }
-  if (staffOnly && user.role !== 'admin' && user.role !== 'librarian') {
+  if (staffOnly && user.role !== 'admin') {
     return <Navigate to={homePathForRole(user.role)} replace />;
   }
   return children;

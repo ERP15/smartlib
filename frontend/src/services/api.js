@@ -50,5 +50,6 @@ export const getAdminUsers = () => api.get('/api/admin/users');
 export const updateAdminUser = (userId, data) => api.put(`/api/admin/users/${userId}`, data);
 export const deleteAdminUser = (userId) => api.delete(`/api/admin/users/${userId}`);
 export const updateProfile = (data) => api.put('/api/auth/profile', data);
+export const backupDatabase = () => api.get('/api/admin/backup', { responseType: 'blob' });
 
 export default api;

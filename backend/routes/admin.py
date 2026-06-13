@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, send_file, session
+from flask import Blueprint, jsonify, request, send_file, session, make_response
 from sqlalchemy import case, func
 
 from ..extensions import db
@@ -110,7 +110,7 @@ def _collect_reports_data():
     )
 
     student_users = User.query.filter_by(role='student').count()
-    staff_users = User.query.filter(User.role.in_(('admin', 'librarian'))).count()
+    staff_users = User.query.filter_by(role='admin').count()
 
     average_borrows_per_user = round(total_borrows / total_users, 2) if total_users else 0
 
@@ -318,7 +318,7 @@ def update_user(user_id):
             return jsonify({'error': 'Student ID is already taken'}), 400
         user.student_id = data['student_id']
     if 'role' in data:
-        if data['role'] not in ('admin', 'librarian', 'student'):
+        if data['role'] not in ('admin', 'student'):
             return jsonify({'error': 'Invalid role'}), 400
         user.role = data['role']
     if 'is_active' in data:
@@ -339,3 +339,62 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({'message': 'User deleted successfully'}), 200
+
+
+@admin_bp.route('/backup', methods=['GET'])
+@staff_required
+def backup_database():
+    try:
+        conn = db.engine.raw_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SHOW TABLES")
+        tables = [row[0] for row in cursor.fetchall()]
+        
+        sql_dump = []
+        sql_dump.append("-- SmartLib Database Backup")
+        sql_dump.append(f"-- Generated on: {datetime.datetime.utcnow().isoformat()} UTC\n")
+        sql_dump.append("CREATE DATABASE IF NOT EXISTS smartlib;")
+        sql_dump.append("USE smartlib;\n")
+        
+        for table in tables:
+            cursor.execute(f"SHOW CREATE TABLE {table}")
+            create_stmt = cursor.fetchone()[1]
+            sql_dump.append(f"DROP TABLE IF EXISTS `{table}`;")
+            sql_dump.append(f"{create_stmt};\n")
+            
+            cursor.execute(f"SELECT * FROM `{table}`")
+            rows = cursor.fetchall()
+            if rows:
+                cursor.execute(f"DESCRIBE `{table}`")
+                columns = [col[0] for col in cursor.fetchall()]
+                col_names = ", ".join(f"`{c}`" for c in columns)
+                
+                for row in rows:
+                    values = []
+                    for val in row:
+                        if val is None:
+                            values.append("NULL")
+                        elif isinstance(val, (int, float)):
+                            values.append(str(val))
+                        elif isinstance(val, (datetime.datetime, datetime.date)):
+                            values.append(f"'{val.isoformat()}'")
+                        elif isinstance(val, bytes):
+                            values.append(f"X'{val.hex()}'")
+                        else:
+                            escaped = str(val).replace("'", "''").replace("\\", "\\\\")
+                            values.append(f"'{escaped}'")
+                    val_str = ", ".join(values)
+                    sql_dump.append(f"INSERT INTO `{table}` ({col_names}) VALUES ({val_str});")
+                sql_dump.append("")
+                
+        cursor.close()
+        conn.close()
+        
+        dump_content = "\n".join(sql_dump)
+        response = make_response(dump_content)
+        response.headers["Content-Disposition"] = "attachment; filename=smartlib_backup.sql"
+        response.headers["Content-Type"] = "application/sql"
+        return response
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

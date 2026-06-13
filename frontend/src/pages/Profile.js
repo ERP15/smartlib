@@ -110,7 +110,7 @@ export default function Profile() {
         <div className="hero-spotlight profile-spotlight">
           <div>
             <span className="eyebrow">Role</span>
-            <strong>{staff ? 'Staff' : 'Student'}</strong>
+            <strong>{profileUser.role === 'admin' ? 'Admin' : 'Student'}</strong>
           </div>
           <div>
             <span className="eyebrow">Email</span>
@@ -118,7 +118,7 @@ export default function Profile() {
           </div>
           <div>
             <span className="eyebrow">Username</span>
-            <strong>{profileUser.username || profileUser.student_id || 'SmartLib user'}</strong>
+            <strong>{profileUser.name}</strong>
           </div>
         </div>
       </section>

@@ -16,6 +16,7 @@ import {
   getAdminUsers,
   updateAdminUser,
   deleteAdminUser,
+  backupDatabase,
 } from '../services/api';
 import { saveAs } from 'file-saver';
 import {
@@ -53,6 +54,14 @@ function formatDateTime(value) {
   return value ? new Date(value).toLocaleString() : '—';
 }
 
+function getDaysOverdue(dueDate) {
+  const due = new Date(dueDate);
+  const now = new Date();
+  const diffTime = now - due;
+  if (diffTime <= 0) return 0;
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) || 1;
+}
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState('analytics');
   const [stats, setStats] = useState(null);
@@ -72,11 +81,15 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
 
+  // Overdue notification states
+  const [hasDismissedOverdue, setHasDismissedOverdue] = useState(false);
+  const [showOverduePopup, setShowOverduePopup] = useState(false);
+  const [prevOverdueIds, setPrevOverdueIds] = useState([]);
+
   const loadDashboard = async () => {
     const res = await getAdminDashboard();
     setStats(res.data.stats);
     setRecent(res.data.recent_borrows || []);
-    setOverdue(res.data.overdue_loans || []);
   };
 
   const loadReports = async () => {
@@ -104,11 +117,38 @@ export default function AdminDashboard() {
     setUsers(res.data.users || []);
   };
 
+  const loadOverdue = async (showPopupOnNew = true) => {
+    const res = await getOverdueBorrows();
+    const currentBorrows = res.data.borrows || [];
+    setOverdue(currentBorrows);
+    if (currentBorrows.length > 0) {
+      const currentIds = currentBorrows.map(b => b.id);
+      setPrevOverdueIds(prev => {
+        const hasNew = currentIds.some(id => !prev.includes(id));
+        if (hasNew && showPopupOnNew) {
+          setShowOverduePopup(true);
+          setHasDismissedOverdue(false);
+        }
+        return currentIds;
+      });
+    } else {
+      setShowOverduePopup(false);
+    }
+  };
+
   const loadAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadDashboard(), loadReports(), loadBooks(), loadBorrows(), loadPendingReturns(), loadUsers()]);
+      await Promise.all([
+        loadDashboard(),
+        loadReports(),
+        loadBooks(),
+        loadBorrows(),
+        loadPendingReturns(),
+        loadUsers(),
+        loadOverdue(true),
+      ]);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
@@ -118,6 +158,14 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadAll();
+
+    const interval = setInterval(() => {
+      loadDashboard();
+      loadOverdue(true);
+      loadPendingReturns();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -243,8 +291,7 @@ export default function AdminDashboard() {
 
   const refreshOverdue = async () => {
     try {
-      const res = await getOverdueBorrows();
-      setOverdue(res.data.borrows || []);
+      await loadOverdue(true);
       await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to refresh overdue');
@@ -265,6 +312,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBackup = async () => {
+    try {
+      const res = await backupDatabase();
+      const blob = new Blob([res.data], { type: 'application/sql' });
+      saveAs(blob, 'smartlib_backup.sql');
+      setMessage('Database backup downloaded successfully.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not download database backup');
+    }
+  };
+
   if (loading && !stats) {
     return (
       <div className="page">
@@ -281,6 +339,14 @@ export default function AdminDashboard() {
           <h1>Admin dashboard</h1>
           <p className="subhead">Manage books, loans, and overdue items.</p>
         </div>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={handleBackup}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-end', marginBottom: '0.25rem' }}
+        >
+          <span>💾</span> Download Backup
+        </button>
       </div>
 
       {error && <div className="alert">{error}</div>}
@@ -345,8 +411,29 @@ export default function AdminDashboard() {
             type="button"
             className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => setTab(t)}
+            style={{ position: 'relative' }}
           >
             {t === 'pending' ? 'Pending' : t === 'analytics' ? 'Analytics' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'overdue' && overdue.length > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-2px',
+                  background: 'var(--danger)',
+                  color: 'white',
+                  borderRadius: '10px',
+                  padding: '2px 6px',
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  lineHeight: 1,
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                  border: '1px solid white'
+                }}
+              >
+                {overdue.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -549,7 +636,7 @@ export default function AdminDashboard() {
                       <td>{formatDateTime(b.return_request_date)}</td>
                       <td className="table-actions">
                         <button type="button" className="btn btn-primary btn-small" onClick={() => handleConfirmReturn(b.id)}>
-                          Confirm Receipt
+                          Confirm Request
                         </button>
                         <button type="button" className="btn btn-ghost btn-small" onClick={() => handleRejectReturn(b.id)}>
                           Reject Request
@@ -916,7 +1003,7 @@ export default function AdminDashboard() {
                       </td>
                       <td><code>{u.student_id || '—'}</code></td>
                       <td>
-                        <span className={`status ${u.role === 'admin' ? 'danger' : u.role === 'librarian' ? 'warning' : ''}`}>
+                        <span className={`status ${u.role === 'admin' ? 'danger' : ''}`}>
                           {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                         </span>
                       </td>
@@ -1011,7 +1098,6 @@ export default function AdminDashboard() {
                   style={{ width: '100%' }}
                 >
                   <option value="student">Student</option>
-                  <option value="librarian">Librarian</option>
                   <option value="admin">Admin</option>
                 </select>
               </label>
@@ -1056,6 +1142,120 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Overdue Notification Pop-up */}
+      {showOverduePopup && overdue.length > 0 && (
+        <div 
+          className="overdue-popup-container fade-in" 
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            width: '380px',
+            maxHeight: '400px',
+            backgroundColor: 'var(--surface)',
+            border: '2px solid var(--danger)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{
+            backgroundColor: 'var(--danger)',
+            color: 'white',
+            padding: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontWeight: 'bold'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>⚠️</span> Overdue Books Alert ({overdue.length})
+            </span>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowOverduePopup(false);
+                setHasDismissedOverdue(true);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                padding: '0 0.25rem',
+                lineHeight: 1
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{
+            padding: '1rem',
+            overflowY: 'auto',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}>
+            {overdue.map(b => (
+              <div 
+                key={b.id} 
+                style={{
+                  borderBottom: '1px solid var(--border)',
+                  paddingBottom: '0.75rem',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '0.25rem' }}>
+                  {b.book_title}
+                </div>
+                <div style={{ color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <span>Borrower: <strong>{b.user_name}</strong> ({b.student_id})</span>
+                  <span>Due Date: {new Date(b.due_date).toLocaleDateString()}</span>
+                  <span style={{ color: 'var(--danger)', fontWeight: '600' }}>
+                    Days Overdue: {getDaysOverdue(b.due_date)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{
+            padding: '0.75rem 1rem',
+            borderTop: '1px solid var(--border)',
+            backgroundColor: 'var(--surface-2)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.5rem'
+          }}>
+            <button 
+              type="button" 
+              className="btn btn-ghost btn-small"
+              onClick={() => {
+                setShowOverduePopup(false);
+                setHasDismissedOverdue(true);
+              }}
+            >
+              Dismiss
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary btn-small"
+              onClick={() => {
+                setTab('overdue');
+                setShowOverduePopup(false);
+                setHasDismissedOverdue(true);
+              }}
+            >
+              Manage Overdue
+            </button>
           </div>
         </div>
       )}

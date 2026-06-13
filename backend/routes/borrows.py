@@ -26,7 +26,7 @@ def _error(message, status):
 def list_borrows():
     mark_overdue_records()
     role = session.get('role')
-    if role in ('admin', 'librarian'):
+    if role == 'admin':
         records = BorrowRecord.query.order_by(BorrowRecord.borrow_date.desc()).all()
         return jsonify({
             'borrows': [borrow_to_dict(r, include_user=True) for r in records],
@@ -169,13 +169,13 @@ def return_book(borrow_id):
     user = get_current_user()
     role = session.get('role')
 
-    if record.user_id != user.id and role not in ('admin', 'librarian'):
+    if record.user_id != user.id and role != 'admin':
         return _error('Not allowed to return this loan', 403)
 
     if record.status == 'returned' or record.actual_return_date:
         return _error('Already returned', 409)
 
-    if role in ('admin', 'librarian'):
+    if role == 'admin':
         if record.status not in ('pending_return', 'borrowed', 'overdue'):
             return _error('No active loan to return', 409)
 

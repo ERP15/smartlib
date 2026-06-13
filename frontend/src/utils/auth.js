@@ -22,7 +22,7 @@ export function isLoggedIn() {
 
 export function isStaff() {
   const user = getUser();
-  return user && (user.role === 'admin' || user.role === 'librarian');
+  return user && user.role === 'admin';
 }
 
 export function isAdmin() {
@@ -31,6 +31,6 @@ export function isAdmin() {
 }
 
 export function homePathForRole(role) {
-  if (role === 'admin' || role === 'librarian') return '/admin';
+  if (role === 'admin') return '/admin';
   return '/catalog';
 }

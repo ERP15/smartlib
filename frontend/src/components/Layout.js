@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearAuth } from '../utils/auth';
-import { logout } from '../services/api';
+import { logout, getMyBorrows } from '../services/api';
 
 export default function Layout({ children }) {
   const user = getUser();
   const navigate = useNavigate();
   const [showRolePicker, setShowRolePicker] = useState(false);
+  const [overdueBook, setOverdueBook] = useState(null);
 
   React.useEffect(() => {
     if (showRolePicker) {
@@ -19,6 +20,29 @@ export default function Layout({ children }) {
       document.body.style.overflow = '';
     };
   }, [showRolePicker]);
+
+  React.useEffect(() => {
+    if (!user || user.role !== 'student') {
+      setOverdueBook(null);
+      return;
+    }
+
+    const checkOverdue = async () => {
+      try {
+        const res = await getMyBorrows();
+        const borrowsList = res.data.borrows || [];
+        const overdue = borrowsList.find(b => b.status === 'overdue');
+        setOverdueBook(overdue || null);
+      } catch (err) {
+        console.error("Failed to check student overdue books", err);
+      }
+    };
+
+    checkOverdue();
+    const interval = setInterval(checkOverdue, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -40,7 +64,7 @@ export default function Layout({ children }) {
         <nav className="nav-links">
           {user ? (
             <>
-              {(user.role === 'admin' || user.role === 'librarian') && (
+              {user.role === 'admin' && (
                 <NavLink to="/admin">Admin Dashboard</NavLink>
               )}
               <NavLink to="/catalog">Books</NavLink>
@@ -66,6 +90,25 @@ export default function Layout({ children }) {
           )}
         </nav>
       </header>
+
+      {user && user.role === 'student' && overdueBook && (
+        <div 
+          className="overdue-student-banner fade-in" 
+          style={{
+            background: '#fff5f5',
+            borderBottom: '1px solid #ffe3e3',
+            color: '#c53030',
+            padding: '0.75rem 1.5rem',
+            textAlign: 'center',
+            fontSize: '0.9rem',
+            fontWeight: '600',
+            boxShadow: 'inset 0 -1px 3px rgba(0,0,0,0.02)'
+          }}
+        >
+          Your borrowed book, <strong>{overdueBook.book_title}</strong>, is overdue. It was due on <strong>{new Date(overdueBook.due_date).toLocaleDateString()}</strong>. Please return it to the library as soon as possible to avoid additional penalties or fines.
+        </div>
+      )}
+
       <main>{children}</main>
 
       {/* Role Picker Modal Overlay */}

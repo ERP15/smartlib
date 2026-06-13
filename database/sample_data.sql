@@ -10,7 +10,6 @@ INSERT INTO users (student_id, name, email, password, role) VALUES
 ('STU001', 'John Doe', 'john@example.com', '$2b$12$hash1', 'student'),
 ('STU002', 'Jane Smith', 'jane@example.com', '$2b$12$hash2', 'student'),
 ('STU003', 'Bob Wilson', 'bob@example.com', '$2b$12$hash3', 'student'),
-('LIB001', 'Alice Johnson', 'alice@example.com', '$2b$12$hash4', 'librarian'),
 ('ADMIN001', 'Admin User', 'admin@example.com', '$2b$12$hash5', 'admin');
 
 -- ============================================

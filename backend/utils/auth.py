@@ -4,7 +4,7 @@ from flask import session, jsonify
 
 from ..models import User
 
-STAFF_ROLES = ('admin', 'librarian')
+STAFF_ROLES = ('admin',)
 
 
 def _error(message, status=401):
