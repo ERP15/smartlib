@@ -141,7 +141,7 @@ def recommend_books():
         author_hits = author_counts.get(author_key_norm, 0)
         if author_hits:
             score += author_hits * 6
-            reasons.append(f"Same author as books you've loans: {book.author}")
+            reasons.append(f"Same author as books you've borrowed: {book.author}")
 
         if genre_filter_norm:
             book_genre_norm = _normalize(book.genre)
@@ -166,7 +166,7 @@ def recommend_books():
         borrow_popularity = popularity.get(book.id, 0)
         if borrow_popularity:
             score += min(borrow_popularity, 10)
-            reasons.append(f"loans {borrow_popularity} times in the library")
+            reasons.append(f"borrowed {borrow_popularity} times in the library")
 
         if not reasons:
             reasons.append('Available title')

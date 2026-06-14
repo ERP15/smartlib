@@ -34,6 +34,10 @@ export const returnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/retur
 export const requestReturnBook = (borrowId) => api.post(`/api/borrows/${borrowId}/return`);
 export const confirmReturn = (borrowId) => api.post(`/api/borrows/${borrowId}/confirm-return`);
 export const rejectReturn = (borrowId) => api.post(`/api/borrows/${borrowId}/reject-return`);
+export const sendDueReminder = (borrowId) => api.post(`/api/borrows/${borrowId}/send-reminder`);
+export const getNotifications = () => api.get('/api/borrows/notifications');
+export const markNotificationRead = (notificationId) => api.post(`/api/borrows/notifications/${notificationId}/read`);
+
 
 export const uploadBookImage = (file) => {
   const form = new FormData();

@@ -21,6 +21,8 @@ class User(db.Model):
     )
 
     borrows = db.relationship('BorrowRecord', back_populates='user', lazy='dynamic')
+    notifications = db.relationship('Notification', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
+
 
 
 class Book(db.Model):
@@ -52,7 +54,7 @@ class BorrowRecord(db.Model):
     due_date = db.Column(db.DateTime, nullable=False)
     return_request_date = db.Column(db.DateTime, nullable=True)
     actual_return_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default='loans', nullable=False)
+    status = db.Column(db.String(20), default='borrowed', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     updated_at = db.Column(
         db.DateTime,
@@ -70,3 +72,23 @@ class BorrowRecord(db.Model):
         if isinstance(due_date, date) and not isinstance(due_date, datetime):
             due_date = datetime.combine(due_date, time.min)
         return due_date < datetime.utcnow()
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    book_title = db.Column(db.String(255), nullable=True)
+    due_date = db.Column(db.DateTime, nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    updated_at = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp(),
+        server_onupdate=db.func.current_timestamp(),
+    )
+
+    user = db.relationship('User', back_populates='notifications')
+

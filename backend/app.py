@@ -75,6 +75,39 @@ def _apply_schema_upgrades(app):
         )
     )
 
+    # Upgrade notifications table schema
+    for col_name, col_type in [
+        ('title', 'VARCHAR(255) NOT NULL'),
+        ('book_title', 'VARCHAR(255) NULL'),
+        ('due_date', 'DATETIME NULL'),
+        ('updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+    ]:
+        exists = db.session.execute(
+            text(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'notifications' "
+                "AND COLUMN_NAME = :column"
+            ),
+            {'schema': schema_name, 'column': col_name},
+        ).scalar()
+        if not exists:
+            db.session.execute(
+                text(f"ALTER TABLE notifications ADD COLUMN {col_name} {col_type}"),
+            )
+
+    exists_type = db.session.execute(
+        text(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'notifications' "
+            "AND COLUMN_NAME = 'type'"
+        ),
+        {'schema': schema_name},
+    ).scalar()
+    if exists_type:
+        db.session.execute(
+            text("ALTER TABLE notifications DROP COLUMN type"),
+        )
+
     drop_columns = [
         ('books', 'isbn'),
         ('borrow_records', 'return_date'),
@@ -93,11 +126,26 @@ def _apply_schema_upgrades(app):
                 text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"),
             )
 
+    # Safe migration: add 'borrowed' to enum, update existing 'loans' or '' records, then modify enum to final state
     db.session.execute(
         text(
             "ALTER TABLE borrow_records "
-            "MODIFY COLUMN status ENUM('loans','returned','overdue','pending_return') "
-            "DEFAULT 'loans'"
+            "MODIFY COLUMN status ENUM('loans','borrowed','returned','overdue','pending_return') "
+            "DEFAULT 'borrowed'"
+        )
+    )
+    db.session.execute(
+        text(
+            "UPDATE borrow_records "
+            "SET status = 'borrowed' "
+            "WHERE status = 'loans' OR status = '' OR status IS NULL"
+        )
+    )
+    db.session.execute(
+        text(
+            "ALTER TABLE borrow_records "
+            "MODIFY COLUMN status ENUM('borrowed','returned','overdue','pending_return') "
+            "DEFAULT 'borrowed'"
         )
     )
     db.session.commit()

@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearAuth } from '../utils/auth';
-import { logout, getMyBorrows } from '../services/api';
+import { logout, getMyBorrows, getNotifications, markNotificationRead } from '../services/api';
+
 
 export default function Layout({ children }) {
   const user = getUser();
   const navigate = useNavigate();
   const [showRolePicker, setShowRolePicker] = useState(false);
   const [overdueBook, setOverdueBook] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotificationPopup, setShowNotificationPopup] = useState(false);
+
 
   React.useEffect(() => {
     if (showRolePicker) {
@@ -43,6 +47,50 @@ export default function Layout({ children }) {
 
     return () => clearInterval(interval);
   }, [user]);
+
+  React.useEffect(() => {
+    if (!user || user.role !== 'student') {
+      setNotifications([]);
+      setShowNotificationPopup(false);
+      return;
+    }
+
+    const checkNotifications = async () => {
+      try {
+        const res = await getNotifications();
+        const activeNotifs = res.data.notifications || [];
+        setNotifications(activeNotifs);
+        if (activeNotifs.length > 0) {
+          setShowNotificationPopup(true);
+        } else {
+          setShowNotificationPopup(false);
+        }
+      } catch (err) {
+        console.error("Failed to check student notifications", err);
+      }
+    };
+
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleDismissNotification = async (notifId) => {
+    try {
+      await markNotificationRead(notifId);
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.id !== notifId);
+        if (updated.length === 0) {
+          setShowNotificationPopup(false);
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error("Failed to mark notification as read", err);
+    }
+  };
+
 
   React.useEffect(() => {
     if (!user) return;
@@ -127,23 +175,7 @@ export default function Layout({ children }) {
         </nav>
       </header>
 
-      {user && user.role === 'student' && overdueBook && (
-        <div 
-          className="overdue-student-banner fade-in" 
-          style={{
-            background: '#fff5f5',
-            borderBottom: '1px solid #ffe3e3',
-            color: '#c53030',
-            padding: '0.75rem 1.5rem',
-            textAlign: 'center',
-            fontSize: '0.9rem',
-            fontWeight: '600',
-            boxShadow: 'inset 0 -1px 3px rgba(0,0,0,0.02)'
-          }}
-        >
-          Your borrowed book, <strong>{overdueBook.book_title}</strong>, is overdue. It was due on <strong>{new Date(overdueBook.due_date).toLocaleDateString()}</strong>. Please return it to the library as soon as possible to avoid additional penalties or fines.
-        </div>
-      )}
+      
 
       <main>{children}</main>
 
@@ -183,6 +215,103 @@ export default function Layout({ children }) {
         </div>,
         document.body
       )}
+
+      {user && user.role === 'student' && showNotificationPopup && notifications.length > 0 && createPortal(
+        <div 
+          className="notification-popup-container fade-in" 
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            width: '380px',
+            maxHeight: '400px',
+            backgroundColor: 'var(--surface)',
+            border: '2px solid var(--primary)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{
+            backgroundColor: 'var(--primary)',
+            color: 'black',
+            padding: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontWeight: 'bold'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>🔔</span> Book Due Reminder ({notifications.length})
+            </span>
+            <button 
+              type="button" 
+              onClick={async () => {
+                const notifsToDismiss = [...notifications];
+                for (const n of notifsToDismiss) {
+                  await handleDismissNotification(n.id);
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'black',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                padding: '0 0.25rem',
+                lineHeight: 1
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{
+            padding: '1rem',
+            overflowY: 'auto',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}>
+            {notifications.map(n => {
+              const message = n.message;
+              return (
+                <div 
+                  key={n.id} 
+                  style={{
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '0.75rem',
+                    fontSize: '0.85rem',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '0.25rem' }}>
+                    {n.title}
+                  </div>
+                  <div style={{ color: 'var(--text)', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+                    {message}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                      onClick={() => handleDismissNotification(n.id)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 }

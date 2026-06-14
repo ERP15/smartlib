@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 admin_bp = Blueprint('admin', __name__)
-ACTIVE_STATUSES = ('loans', 'overdue', 'pending_return')
+ACTIVE_STATUSES = ('borrowed', 'overdue', 'pending_return')
 
 
 @admin_bp.route('/dashboard', methods=['GET'])

@@ -30,3 +30,18 @@ def borrow_to_dict(record, include_user=False):
         data['user_email'] = record.user.email
         data['student_id'] = record.user.student_id
     return data
+
+
+def notification_to_dict(notification):
+    return {
+        'id': notification.id,
+        'user_id': notification.user_id,
+        'title': notification.title,
+        'message': notification.message,
+        'book_title': notification.book_title,
+        'due_date': notification.due_date.isoformat() + 'Z' if notification.due_date else None,
+        'is_read': notification.is_read,
+        'created_at': notification.created_at.isoformat() + 'Z' if notification.created_at else None,
+        'updated_at': notification.updated_at.isoformat() + 'Z' if notification.updated_at else None,
+    }
+

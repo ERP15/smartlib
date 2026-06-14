@@ -4,10 +4,11 @@ from flask import Blueprint, request, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
-from ..models import Book, BorrowRecord, User
-from ..serializers import borrow_to_dict
+from ..models import Book, BorrowRecord, User, Notification
+from ..serializers import borrow_to_dict, notification_to_dict
 from ..services.overdue import mark_overdue_records
 from ..utils.auth import login_required, staff_required, get_current_user
+
 
 borrows_bp = Blueprint('borrows', __name__)
 
@@ -136,10 +137,10 @@ def borrow_book():
     active = BorrowRecord.query.filter(
         BorrowRecord.user_id == user.id,
         BorrowRecord.book_id == book.id,
-        BorrowRecord.status.in_(('loans', 'overdue', 'pending_return')),
+        BorrowRecord.status.in_(('borrowed', 'overdue', 'pending_return')),
     ).first()
     if active:
-        return _error('You already have an active loan for this book', 409)
+        return _error('You already have an active borrow for this book', 409)
 
     record = BorrowRecord(
         user_id=user.id,
@@ -170,14 +171,14 @@ def return_book(borrow_id):
     role = session.get('role')
 
     if record.user_id != user.id and role != 'admin':
-        return _error('Not allowed to return this loan', 403)
+        return _error('Not allowed to return this borrowed book', 403)
 
     if record.status == 'returned' or record.actual_return_date:
         return _error('Already returned', 409)
 
     if role == 'admin':
         if record.status not in ('pending_return', 'borrowed', 'overdue'):
-            return _error('No active loan to return', 409)
+            return _error('No active borrow to return', 409)
 
         book = Book.query.get(record.book_id)
         record.actual_return_date = datetime.utcnow()
@@ -219,7 +220,7 @@ def return_book(borrow_id):
 def confirm_return(borrow_id):
     record = BorrowRecord.query.get_or_404(borrow_id)
     if record.status not in ('pending_return', 'borrowed', 'overdue'):
-        return _error('No active loan to return', 409)
+        return _error('No active borrow to return', 409)
 
     book = Book.query.get(record.book_id)
     record.actual_return_date = datetime.utcnow()
@@ -248,7 +249,7 @@ def reject_return(borrow_id):
 
     record.return_request_date = None
     record.actual_return_date = None
-    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'loans'
+    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'borrowed'
 
     try:
         db.session.commit()
@@ -260,3 +261,67 @@ def reject_return(borrow_id):
         'message': 'Return request rejected',
         'borrow': borrow_to_dict(record, include_user=True),
     }), 200
+
+
+@borrows_bp.route('/<int:borrow_id>/send-reminder', methods=['POST'])
+@staff_required
+def send_reminder(borrow_id):
+    record = BorrowRecord.query.get_or_404(borrow_id)
+
+    if record.status == 'returned' or record.actual_return_date:
+        return _error('Book has already been returned', 400)
+
+    is_overdue = record.status == 'overdue' or record.is_overdue()
+    if is_overdue:
+        message = f"Your borrowed book '{record.book.title if record.book else ''}' is overdue. Please return it."
+    else:
+        due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p')
+        message = f"Your borrowed book '{record.book.title if record.book else ''}' is due on {due_date_str}. Please return it on or before the due date."
+
+    notification = Notification(
+        user_id=record.user_id,
+        title="Book Due Reminder",
+        message=message,
+        book_title=record.book.title if record.book else '',
+        due_date=record.due_date,
+        is_read=False
+    )
+
+    try:
+        db.session.add(notification)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return _error('Could not create notification', 500)
+
+    return jsonify({
+        'message': 'Due reminder sent successfully',
+        'notification': notification_to_dict(notification)
+    }), 200
+
+
+@borrows_bp.route('/notifications', methods=['GET'])
+@login_required
+def list_notifications():
+    user = get_current_user()
+    notifications = Notification.query.filter_by(user_id=user.id, is_read=False).order_by(Notification.created_at.desc()).all()
+    return jsonify({
+        'notifications': [notification_to_dict(n) for n in notifications]
+    }), 200
+
+
+@borrows_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_read(notification_id):
+    user = get_current_user()
+    notification = Notification.query.filter_by(id=notification_id, user_id=user.id).first_or_404()
+    notification.is_read = True
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return _error('Could not mark notification as read', 500)
+    return jsonify({
+        'message': 'Notification marked as read'
+    }), 200
+

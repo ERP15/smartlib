@@ -12,7 +12,9 @@ import {
   getPendingReturns,
   confirmReturn,
   rejectReturn,
+  sendDueReminder,
   uploadBookImage,
+
   getAdminUsers,
   updateAdminUser,
   deleteAdminUser,
@@ -51,7 +53,9 @@ function resolveImageUrl(image) {
 }
 
 function formatDateTime(value) {
-  return value ? new Date(value).toLocaleString() : '—';
+  if (!value) return '—';
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
 function getDaysOverdue(dueDate) {
@@ -288,6 +292,17 @@ export default function AdminDashboard() {
       setError(err.response?.data?.error || 'Could not reject return');
     }
   };
+
+  const handleSendReminder = async (borrowId) => {
+    try {
+      const res = await sendDueReminder(borrowId);
+      setMessage(res.data.message || 'Due reminder sent successfully.');
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not send due reminder');
+    }
+  };
+
 
   const refreshOverdue = async () => {
     try {
@@ -584,15 +599,16 @@ export default function AdminDashboard() {
                         {b.status !== 'returned' ? (
                           <button
                             type="button"
-                            className="btn btn-primary btn-small"
-                            onClick={() => handleConfirmReturn(b.id)}
+                            className="btn btn-warning btn-small"
+                            onClick={() => handleSendReminder(b.id)}
                           >
-                            Return Book
+                            Send Due Reminder
                           </button>
                         ) : (
                           <span className="muted">—</span>
                         )}
                       </td>
+
                     </tr>
                   ))
                 )}
@@ -660,7 +676,7 @@ export default function AdminDashboard() {
                 System marks borrows overdue automatically based on time matrix.
               </p>
             </div>
-            <button type="button" className="btn btn-ghost btn-small" onClick={refreshOverdue}>Execute Run-Check</button>
+            
           </div>
           {overdue.length === 0 ? (
             <p className="muted" style={{ padding: '2rem 0', textAlign: 'center' }}>No overdue borrows currently recorded.</p>
@@ -687,10 +703,10 @@ export default function AdminDashboard() {
                       <td>
                         <button
                           type="button"
-                          className="btn btn-primary btn-small"
-                          onClick={() => handleConfirmReturn(b.id)}
+                          className="btn btn-warning btn-small"
+                          onClick={() => handleSendReminder(b.id)}
                         >
-                          Return Book
+                          Send Due Reminder
                         </button>
                       </td>
                     </tr>
@@ -1219,7 +1235,7 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <span>Borrower: <strong>{b.user_name}</strong> ({b.student_id})</span>
-                  <span>Due Date: {new Date(b.due_date).toLocaleDateString()}</span>
+                  <span>Due Date: {b.due_date && !isNaN(new Date(b.due_date).getTime()) ? new Date(b.due_date).toLocaleString() : '—'}</span>
                   <span style={{ color: 'var(--danger)', fontWeight: '600' }}>
                     Days Overdue: {getDaysOverdue(b.due_date)}
                   </span>

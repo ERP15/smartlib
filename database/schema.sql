@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS borrow_records (
     due_date DATETIME NOT NULL,
     return_request_date DATETIME,
     actual_return_date DATETIME,
-    status ENUM('loans', 'returned', 'overdue', 'pending_return') DEFAULT 'loans',
+    status ENUM('borrowed', 'returned', 'overdue', 'pending_return') DEFAULT 'borrowed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -87,10 +87,13 @@ CREATE TABLE IF NOT EXISTS recommendations (
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
-    type ENUM('borrow', 'return', 'overdue', 'recommendation') DEFAULT 'borrow',
+    book_title VARCHAR(255) NULL,
+    due_date DATETIME NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_is_read (is_read)
