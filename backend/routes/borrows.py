@@ -145,7 +145,7 @@ def borrow_book():
         user_id=user.id,
         book_id=book.id,
         due_date=due,
-        status='loans',
+        status='borrowed',
     )
     book.available_quantity -= 1
 
@@ -157,7 +157,7 @@ def borrow_book():
         return _error('Could not create borrow record', 500)
 
     return jsonify({
-        'message': 'Book loans',
+        'message': 'Book borrowed',
         'borrow': borrow_to_dict(record),
     }), 201
 
@@ -176,7 +176,7 @@ def return_book(borrow_id):
         return _error('Already returned', 409)
 
     if role == 'admin':
-        if record.status not in ('pending_return', 'loans', 'overdue'):
+        if record.status not in ('pending_return', 'borrowed', 'overdue'):
             return _error('No active loan to return', 409)
 
         book = Book.query.get(record.book_id)
@@ -218,7 +218,7 @@ def return_book(borrow_id):
 @staff_required
 def confirm_return(borrow_id):
     record = BorrowRecord.query.get_or_404(borrow_id)
-    if record.status not in ('pending_return', 'loans', 'overdue'):
+    if record.status not in ('pending_return', 'borrowed', 'overdue'):
         return _error('No active loan to return', 409)
 
     book = Book.query.get(record.book_id)

@@ -858,7 +858,7 @@ export default function AdminDashboard() {
           <div className="admin-grid">
             <section className="panel" style={{ flex: 1.2 }}>
               <h2>Most Borrowed Collection Books</h2>
-              {reports.most_loans_books.length === 0 ? (
+              {reports.most_borrowed_books.length === 0 ? (
                 <p className="muted" style={{ padding: '1rem 0' }}>No borrow data generated yet.</p>
               ) : (
                 <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
@@ -872,7 +872,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reports.most_loans_books.map((book) => (
+                      {reports.most_borrowed_books.map((book) => (
                         <tr key={book.book_id}>
                           <td>
                             <strong>{book.title}</strong>
