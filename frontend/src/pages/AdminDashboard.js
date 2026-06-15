@@ -366,20 +366,22 @@ export default function AdminDashboard() {
              'Manage users and roles.'}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={handleBackup}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-end', marginBottom: '0.25rem' }}
-        >
-          <span>💾</span> Download Backup
-        </button>
+        {tab === 'analytics' && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleBackup}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-end', marginBottom: '0.25rem' }}
+          >
+            <span>💾</span> Download Backup
+          </button>
+        )}
       </div>
 
       {error && <div className="alert">{error}</div>}
       {message && <div className="success">{message}</div>}
 
-      {stats && (
+      {tab === 'analytics' && stats && (
         <div className="stats-grid">
           <div className="stat-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
