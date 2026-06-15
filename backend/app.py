@@ -52,6 +52,36 @@ def _apply_schema_upgrades(app):
             text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0 NOT NULL"),
         )
 
+    # Check if late_returns column exists on users table
+    exists_late = db.session.execute(
+        text(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'users' "
+            "AND COLUMN_NAME = 'late_returns'"
+        ),
+        {'schema': schema_name},
+    ).scalar()
+    if not exists_late:
+        db.session.execute(
+            text("ALTER TABLE users ADD COLUMN late_returns INT DEFAULT 0 NOT NULL"),
+        )
+        try:
+            # Sync existing late returns from records where actual_return_date > due_date
+            db.session.execute(
+                text(
+                    "UPDATE users u "
+                    "JOIN ("
+                    "  SELECT user_id, COUNT(*) as cnt "
+                    "  FROM borrow_records "
+                    "  WHERE actual_return_date IS NOT NULL AND actual_return_date > due_date "
+                    "  GROUP BY user_id"
+                    ") r ON u.id = r.user_id "
+                    "SET u.late_returns = r.cnt"
+                )
+            )
+        except Exception:
+            pass
+
     for column_name in ('return_request_date', 'actual_return_date', 'due_date'):
         exists = db.session.execute(
             text(

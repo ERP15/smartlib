@@ -988,6 +988,7 @@ export default function AdminDashboard() {
                   <th>User Details</th>
                   <th>Student ID</th>
                   <th>Role</th>
+                  <th>Late Returns</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1009,6 +1010,13 @@ export default function AdminDashboard() {
                         <span className={`status ${u.role === 'admin' ? 'danger' : ''}`}>
                           {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                         </span>
+                      </td>
+                      <td>
+                        {u.role === 'student' ? (
+                          <span className={`status ${u.late_returns >= 3 ? 'danger' : ''}`}>
+                            {u.late_returns} late
+                          </span>
+                        ) : '—'}
                       </td>
                       <td>
                         <span className={`status ${u.is_active ? 'success' : 'danger'}`}>
@@ -1126,6 +1134,30 @@ export default function AdminDashboard() {
                 />
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>Active & Enabled</span>
               </label>
+
+              {editingUser.role === 'student' && (
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <label className="field">
+                    <span>Late Returns</span>
+                    <input
+                      type="text"
+                      className="input"
+                      value={editingUser.late_returns || 0}
+                      readOnly
+                      style={{ backgroundColor: 'var(--bg)', cursor: 'not-allowed' }}
+                    />
+                  </label>
+                  {editingUser.late_returns >= 5 ? (
+                    <div className="alert" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#b91c1c', background: 'rgba(220, 38, 38, 0.08)', borderColor: 'rgba(220, 38, 38, 0.18)', borderStyle: 'solid', borderWidth: '1px' }}>
+                      ⚠️ Account is suspended due to reaching five (5) late returns. Enabling/Activating this user will reset their late returns count to 0.
+                    </div>
+                  ) : editingUser.late_returns >= 3 ? (
+                    <div className="alert" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#b57a07', background: 'rgba(229, 169, 59, 0.08)', borderColor: 'rgba(229, 169, 59, 0.18)', borderStyle: 'solid', borderWidth: '1px' }}>
+                      ⚠️ Warning: Account has accumulated three (3) or more late returns.
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               <div 
                 className="hero-actions" 

@@ -22,6 +22,35 @@ def _error(message, status):
     return jsonify({'error': message, 'message': message}), status
 
 
+def process_return_late_check(record):
+    if not record.actual_return_date:
+        record.actual_return_date = datetime.utcnow()
+
+    if record.actual_return_date > record.due_date:
+        user = record.user
+        if user and user.role == 'student':
+            user.late_returns += 1
+            if user.late_returns == 3:
+                msg = "You have accumulated three (3) late returns. Two (2) more late returns will result in account suspension."
+                notif = Notification(
+                    user_id=user.id,
+                    title="Account Warning",
+                    message=msg,
+                    is_read=False
+                )
+                db.session.add(notif)
+            elif user.late_returns >= 5:
+                user.is_active = False
+                msg = "Your account has been automatically suspended due to reaching five (5) late returns. Please contact an administrator."
+                notif = Notification(
+                    user_id=user.id,
+                    title="Account Suspended",
+                    message=msg,
+                    is_read=False
+                )
+                db.session.add(notif)
+
+
 @borrows_bp.route('', methods=['GET'])
 @login_required
 def list_borrows():
@@ -134,6 +163,9 @@ def borrow_book():
         return _error('No copies available', 409)
 
     user = get_current_user()
+    if not user.is_active or user.late_returns >= 5:
+        return _error('Your account is suspended. You cannot borrow books.', 403)
+
     active = BorrowRecord.query.filter(
         BorrowRecord.user_id == user.id,
         BorrowRecord.book_id == book.id,
@@ -185,6 +217,7 @@ def return_book(borrow_id):
         record.status = 'returned'
         if book:
             book.available_quantity = min(book.quantity, book.available_quantity + 1)
+        process_return_late_check(record)
 
         try:
             db.session.commit()
@@ -227,6 +260,7 @@ def confirm_return(borrow_id):
     record.status = 'returned'
     if book:
         book.available_quantity = min(book.quantity, book.available_quantity + 1)
+    process_return_late_check(record)
 
     try:
         db.session.commit()
@@ -273,10 +307,10 @@ def send_reminder(borrow_id):
 
     is_overdue = record.status == 'overdue' or record.is_overdue()
     if is_overdue:
-        return _error('This reminder should only be used for books that are not yet overdue', 400)
-
-    due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p')
-    message = f"Your borrowed book '{record.book.title if record.book else ''}' is due on {due_date_str}. Please return it on or before the due date."
+        message = "please return the book its already overdue"
+    else:
+        due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p')
+        message = f"Your borrowed book '{record.book.title if record.book else ''}' is due on {due_date_str}. Please return it on or before the due date."
 
     notification = Notification(
         user_id=record.user_id,

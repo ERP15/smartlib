@@ -91,6 +91,8 @@ def login():
 
     # Check if user is active
     if not user.is_active:
+        if user.late_returns >= 5:
+            return _error('Your account has been suspended due to accumulating 5 late returns. Please contact an administrator.', 403)
         if user.failed_login_attempts >= 3:
             return _error('Your account has been deactivated due to too many failed login attempts. Please contact an administrator.', 403)
         return _error('Your account has been deactivated.', 403)

@@ -34,12 +34,15 @@ export default function Layout({ children }) {
   }, [showRolePicker]);
 
   React.useEffect(() => {
-    if (!user || user.role !== 'student') {
+    const currentUser = getUser();
+    if (!currentUser || currentUser.role !== 'student') {
       setOverdueBook(null);
       return;
     }
 
     const checkOverdue = async () => {
+      const u = getUser();
+      if (!u || u.role !== 'student') return;
       try {
         const res = await getMyBorrows();
         const borrowsList = res.data.borrows || [];
@@ -51,19 +54,22 @@ export default function Layout({ children }) {
     };
 
     checkOverdue();
-    const interval = setInterval(checkOverdue, 30000);
+    const interval = setInterval(checkOverdue, 10000);
 
     return () => clearInterval(interval);
-  }, [userId, userRole]);
+  }, [location.pathname, userId, userRole]);
 
   React.useEffect(() => {
-    if (!user || user.role !== 'student') {
+    const currentUser = getUser();
+    if (!currentUser || currentUser.role !== 'student') {
       setNotifications([]);
       setShowNotificationPopup(false);
       return;
     }
 
     const checkNotifications = async () => {
+      const u = getUser();
+      if (!u || u.role !== 'student') return;
       try {
         const res = await getNotifications();
         const activeNotifs = res.data.notifications || [];
@@ -79,18 +85,21 @@ export default function Layout({ children }) {
     };
 
     checkNotifications();
-    const interval = setInterval(checkNotifications, 30000);
+    const interval = setInterval(checkNotifications, 10000);
 
     return () => clearInterval(interval);
-  }, [userId, userRole]);
+  }, [location.pathname, userId, userRole]);
 
   React.useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    const currentUser = getUser();
+    if (!currentUser || currentUser.role !== 'admin') {
       setAdminOverdueCount(0);
       return;
     }
 
     const checkAdminOverdue = async () => {
+      const u = getUser();
+      if (!u || u.role !== 'admin') return;
       try {
         const res = await getOverdueBorrows();
         const overdueList = res.data.borrows || [];
@@ -101,18 +110,21 @@ export default function Layout({ children }) {
     };
 
     checkAdminOverdue();
-    const interval = setInterval(checkAdminOverdue, 30000);
+    const interval = setInterval(checkAdminOverdue, 10000);
 
     return () => clearInterval(interval);
-  }, [userId, userRole]);
+  }, [location.pathname, userId, userRole]);
 
   React.useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    const currentUser = getUser();
+    if (!currentUser || currentUser.role !== 'admin') {
       setAdminPendingCount(0);
       return;
     }
 
     const checkAdminPending = async () => {
+      const u = getUser();
+      if (!u || u.role !== 'admin') return;
       try {
         const res = await getPendingReturns();
         const pendingList = res.data.borrows || [];
@@ -123,10 +135,10 @@ export default function Layout({ children }) {
     };
 
     checkAdminPending();
-    const interval = setInterval(checkAdminPending, 30000);
+    const interval = setInterval(checkAdminPending, 10000);
 
     return () => clearInterval(interval);
-  }, [userId, userRole]);
+  }, [location.pathname, userId, userRole]);
 
   const handleDismissNotification = async (notifId) => {
     try {
@@ -284,7 +296,33 @@ export default function Layout({ children }) {
         </nav>
       </header>
 
-      
+      {user && user.role === 'student' && overdueBook && (
+        <div 
+          className="overdue-student-banner fade-in" 
+          style={{
+            backgroundColor: 'var(--danger)',
+            color: 'white',
+            padding: '0.85rem 1.5rem',
+            textAlign: 'center',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            zIndex: 99,
+            position: 'relative'
+          }}
+        >
+          <span>⚠️</span>
+          <span>
+            You have an overdue book: <strong>{overdueBook.book_title}</strong>. 
+            It was due on <strong>{new Date(overdueBook.due_date).toLocaleString()}</strong>. 
+            Please return the book, it is already overdue!
+          </span>
+        </div>
+      )}
 
       <main>{children}</main>
 

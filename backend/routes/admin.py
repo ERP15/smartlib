@@ -467,6 +467,7 @@ def user_to_dict(user):
         'email': user.email,
         'role': user.role,
         'is_active': user.is_active,
+        'late_returns': user.late_returns,
         'created_at': user.created_at.isoformat() if user.created_at else None
     }
 
@@ -504,6 +505,8 @@ def update_user(user_id):
         user.is_active = bool(data['is_active'])
         if user.is_active:
             user.failed_login_attempts = 0
+            if user.late_returns >= 5:
+                user.late_returns = 0
         
     db.session.commit()
     return jsonify({'message': 'User updated successfully', 'user': user_to_dict(user)}), 200
