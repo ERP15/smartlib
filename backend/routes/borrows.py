@@ -273,10 +273,10 @@ def send_reminder(borrow_id):
 
     is_overdue = record.status == 'overdue' or record.is_overdue()
     if is_overdue:
-        message = f"Your borrowed book '{record.book.title if record.book else ''}' is overdue. Please return it."
-    else:
-        due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p')
-        message = f"Your borrowed book '{record.book.title if record.book else ''}' is due on {due_date_str}. Please return it on or before the due date."
+        return _error('This reminder should only be used for books that are not yet overdue', 400)
+
+    due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p')
+    message = f"Your borrowed book '{record.book.title if record.book else ''}' is due on {due_date_str}. Please return it on or before the due date."
 
     notification = Notification(
         user_id=record.user_id,

@@ -37,6 +37,13 @@ function normalizeText(text) {
 export default function Catalog() {
   const navigate = useNavigate();
   const user = getUser();
+
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      navigate('/admin', { replace: true });
+    }
+  }, [user, navigate]);
+
   const [books, setBooks] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [query, setQuery] = useState('');

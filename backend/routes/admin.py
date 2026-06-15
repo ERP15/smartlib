@@ -240,6 +240,20 @@ def export_reports():
         for u in tb:
             ws3.append([u.get('name'), u.get('email'), u.get('role'), u.get('borrow_count'), u.get('active_count'), u.get('overdue_count')])
 
+        # All Circulation Records
+        ws4 = wb.create_sheet('Circulation')
+        ws4.append(['Borrower Name', 'Borrower Email', 'Book Title', 'Due Date', 'Status'])
+        all_borrows = BorrowRecord.query.order_by(BorrowRecord.borrow_date.desc()).all()
+        for record in all_borrows:
+            due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p') if record.due_date else '—'
+            ws4.append([
+                record.user.name if record.user else 'Unknown',
+                record.user.email if record.user else '',
+                record.book.title if record.book else 'Unknown Book',
+                due_date_str,
+                record.status
+            ])
+
         bio = BytesIO()
         wb.save(bio)
         bio.seek(0)
@@ -247,34 +261,199 @@ def export_reports():
         return send_file(bio, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     # PDF export
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+
     bio = BytesIO()
-    p = canvas.Canvas(bio, pagesize=letter)
-    width, height = letter
-    y = height - 40
-    p.setFont('Helvetica-Bold', 14)
-    p.drawString(40, y, 'Library Reports')
-    y -= 30
-    p.setFont('Helvetica', 10)
+    doc = SimpleDocTemplate(
+        bio,
+        pagesize=letter,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        spaceAfter=15,
+        textColor=colors.HexColor('#1E293B')
+    )
+
+    h2_style = ParagraphStyle(
+        'SectionHeading',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        spaceBefore=14,
+        spaceAfter=8,
+        textColor=colors.HexColor('#0F172A')
+    )
+
+    cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=11
+    )
+
+    cell_header_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=11,
+        textColor=colors.white
+    )
+
+    story = []
+
+    # Title
+    story.append(Paragraph(f"Library Reports - {datetime.date.today().strftime('%B %d, %Y')}", title_style))
+    story.append(Spacer(1, 10))
+
+    # System Summary Table
+    story.append(Paragraph("System Summary", h2_style))
+    summary_data = [
+        [Paragraph("Metric", cell_header_style), Paragraph("Value", cell_header_style)]
+    ]
+
     s = data.get('summary', {})
+    metric_labels = {
+        'total_books': 'Total Books',
+        'total_users': 'Total Users',
+        'total_borrows': 'Total Borrows',
+        'active_borrows': 'Active Borrows',
+        'overdue_count': 'Overdue Borrows',
+        'pending_return_count': 'Pending Returns',
+        'unique_borrowers': 'Unique Borrowers',
+        'active_borrowers': 'Active Borrowers',
+        'available_copies': 'Available Copies',
+        'average_borrows_per_user': 'Avg Borrows/User'
+    }
     for k, v in s.items():
-        if y < 80:
-            p.showPage(); y = height - 40
-        p.drawString(40, y, f"{k}: {v}")
-        y -= 14
+        label = metric_labels.get(k, k.replace('_', ' ').title())
+        summary_data.append([Paragraph(label, cell_style), Paragraph(str(v), cell_style)])
 
-    y -= 10
-    p.setFont('Helvetica-Bold', 12)
-    p.drawString(40, y, 'Most borrowed books')
-    y -= 18
-    p.setFont('Helvetica', 10)
+    summary_table = Table(summary_data, colWidths=[240, 300], hAlign='LEFT')
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), colors.HexColor('#1E293B')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 10))
+
+    # Most Borrowed Books Table
+    story.append(Paragraph("Most Borrowed Books", h2_style))
+    mb_data = [
+        [
+            Paragraph("Title", cell_header_style),
+            Paragraph("Author", cell_header_style),
+            Paragraph("Genre", cell_header_style),
+            Paragraph("Borrows", cell_header_style),
+            Paragraph("Active", cell_header_style),
+            Paragraph("Overdue", cell_header_style)
+        ]
+    ]
     for b in data.get('most_borrowed_books', []):
-        if y < 80:
-            p.showPage(); y = height - 40
-        p.drawString(40, y, f"{b.get('title')} — {b.get('borrow_count')} borrows")
-        y -= 14
+        mb_data.append([
+            Paragraph(b.get('title', ''), cell_style),
+            Paragraph(b.get('author', ''), cell_style),
+            Paragraph(b.get('genre', ''), cell_style),
+            Paragraph(str(b.get('borrow_count', 0)), cell_style),
+            Paragraph(str(b.get('active_count', 0)), cell_style),
+            Paragraph(str(b.get('overdue_count', 0)), cell_style)
+        ])
+    mb_table = Table(mb_data, colWidths=[160, 100, 80, 70, 65, 65], hAlign='LEFT')
+    mb_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E293B')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
+    ]))
+    story.append(mb_table)
+    story.append(Spacer(1, 10))
 
-    p.showPage()
-    p.save()
+    # Top Borrowers Table
+    story.append(Paragraph("Top Borrowers", h2_style))
+    tb_data = [
+        [
+            Paragraph("Name", cell_header_style),
+            Paragraph("Email", cell_header_style),
+            Paragraph("Role", cell_header_style),
+            Paragraph("Borrows", cell_header_style),
+            Paragraph("Active", cell_header_style),
+            Paragraph("Overdue", cell_header_style)
+        ]
+    ]
+    for u in data.get('user_statistics', {}).get('top_borrowers', []):
+        tb_data.append([
+            Paragraph(u.get('name', ''), cell_style),
+            Paragraph(u.get('email', ''), cell_style),
+            Paragraph(u.get('role', ''), cell_style),
+            Paragraph(str(u.get('borrow_count', 0)), cell_style),
+            Paragraph(str(u.get('active_count', 0)), cell_style),
+            Paragraph(str(u.get('overdue_count', 0)), cell_style)
+        ])
+    tb_table = Table(tb_data, colWidths=[100, 160, 60, 75, 75, 70], hAlign='LEFT')
+    tb_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E293B')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
+    ]))
+    story.append(tb_table)
+    story.append(Spacer(1, 10))
+
+    # All Circulation Records Table
+    story.append(Paragraph("All Circulation Records", h2_style))
+    circ_data = [
+        [
+            Paragraph("Borrower", cell_header_style),
+            Paragraph("Borrowed Book", cell_header_style),
+            Paragraph("Due Date", cell_header_style),
+            Paragraph("Status", cell_header_style)
+        ]
+    ]
+
+    all_borrows = BorrowRecord.query.order_by(BorrowRecord.borrow_date.desc()).all()
+    for record in all_borrows:
+        borrower_info = f"<b>{record.user.name if record.user else 'Unknown'}</b><br/><font color='#64748B'>{record.user.email if record.user else ''}</font>"
+        book_title = record.book.title if record.book else 'Unknown Book'
+        due_date_str = record.due_date.strftime('%Y-%m-%d %I:%M %p') if record.due_date else '—'
+        status_str = record.status
+        circ_data.append([
+            Paragraph(borrower_info, cell_style),
+            Paragraph(book_title, cell_style),
+            Paragraph(due_date_str, cell_style),
+            Paragraph(status_str, cell_style)
+        ])
+
+    circ_table = Table(circ_data, colWidths=[180, 180, 110, 70], hAlign='LEFT')
+    circ_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E293B')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
+    ]))
+    story.append(circ_table)
+
+    doc.build(story)
     bio.seek(0)
     filename = f"library-reports-{datetime.date.today().isoformat()}.pdf"
     return send_file(bio, download_name=filename, as_attachment=True, mimetype='application/pdf')

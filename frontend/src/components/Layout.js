@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, clearAuth } from '../utils/auth';
-import { logout, getMyBorrows, getNotifications, markNotificationRead } from '../services/api';
+import { logout, getMyBorrows, getNotifications, markNotificationRead, getOverdueBorrows } from '../services/api';
 
 
 export default function Layout({ children }) {
   const user = getUser();
   const navigate = useNavigate();
+  const userId = user?.id;
+  const userRole = user?.role;
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab') || 'analytics';
   const [showRolePicker, setShowRolePicker] = useState(false);
   const [overdueBook, setOverdueBook] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
+  const [adminOverdueCount, setAdminOverdueCount] = useState(0);
 
 
   React.useEffect(() => {
@@ -46,7 +52,7 @@ export default function Layout({ children }) {
     const interval = setInterval(checkOverdue, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [userId, userRole]);
 
   React.useEffect(() => {
     if (!user || user.role !== 'student') {
@@ -74,7 +80,29 @@ export default function Layout({ children }) {
     const interval = setInterval(checkNotifications, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [userId, userRole]);
+
+  React.useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      setAdminOverdueCount(0);
+      return;
+    }
+
+    const checkAdminOverdue = async () => {
+      try {
+        const res = await getOverdueBorrows();
+        const overdueList = res.data.borrows || [];
+        setAdminOverdueCount(overdueList.length);
+      } catch (err) {
+        console.error("Failed to check admin overdue borrows", err);
+      }
+    };
+
+    checkAdminOverdue();
+    const interval = setInterval(checkAdminOverdue, 30000);
+
+    return () => clearInterval(interval);
+  }, [userId, userRole]);
 
   const handleDismissNotification = async (notifId) => {
     try {
@@ -93,7 +121,7 @@ export default function Layout({ children }) {
 
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     let idleTimeout;
 
@@ -124,7 +152,7 @@ export default function Layout({ children }) {
         window.removeEventListener(event, resetTimer);
       });
     };
-  }, [user, navigate]);
+  }, [userId, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -147,9 +175,46 @@ export default function Layout({ children }) {
           {user ? (
             <>
               {user.role === 'admin' && (
-                <NavLink to="/admin">Admin Dashboard</NavLink>
+                <>
+                  {['analytics', 'books', 'borrows', 'pending', 'overdue'].map((t) => {
+                    const label = t === 'analytics' ? 'Admin Dashboard' : t === 'pending' ? 'Pending' : t.charAt(0).toUpperCase() + t.slice(1);
+                    const isActive = location.pathname === '/admin' && activeTab === t;
+                    return (
+                      <Link
+                        key={t}
+                        to={`/admin?tab=${t}`}
+                        className={isActive ? 'active' : ''}
+                        style={{ position: 'relative' }}
+                      >
+                        {label}
+                        {t === 'overdue' && adminOverdueCount > 0 && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-12px',
+                              background: 'var(--danger)',
+                              color: 'white',
+                              borderRadius: '10px',
+                              padding: '2px 6px',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              lineHeight: 1,
+                              boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                              border: '1px solid white'
+                            }}
+                          >
+                            {adminOverdueCount}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </>
               )}
-              <NavLink to="/catalog">Books</NavLink>
+              {user.role === 'student' && (
+                <NavLink to="/catalog">Books</NavLink>
+              )}
               {user.role === 'student' && (
                 <NavLink to="/my-borrowed">Borrowed</NavLink>
               )}

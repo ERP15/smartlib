@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   getAdminDashboard,
   getAdminReports,
@@ -67,7 +68,11 @@ function getDaysOverdue(dueDate) {
 }
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState('analytics');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'analytics';
+  const setTab = (t) => {
+    setSearchParams({ tab: t });
+  };
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [recent, setRecent] = useState([]);
@@ -351,8 +356,15 @@ export default function AdminDashboard() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Staff portal</p>
-          <h1>Admin dashboard</h1>
-          <p className="subhead">Manage books, borrows, and overdue items.</p>
+          <h1>{tab === 'analytics' ? 'Admin dashboard' : tab === 'pending' ? 'Pending' : tab.charAt(0).toUpperCase() + tab.slice(1)}</h1>
+          <p className="subhead">
+            {tab === 'analytics' ? 'Manage books, borrows, and overdue items.' : 
+             tab === 'books' ? 'Add, edit, and manage library books.' :
+             tab === 'borrows' ? 'View and track all borrow records.' :
+             tab === 'pending' ? 'Verify and confirm returned books.' :
+             tab === 'overdue' ? 'Manage overdue books and notifications.' :
+             'Manage users and roles.'}
+          </p>
         </div>
         <button
           type="button"
@@ -407,7 +419,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-          <div className="stat-card">
+          <div className="stat-card" onClick={() => setTab('users')} style={{ cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="stat-number">{stats.total_users}</span>
@@ -418,40 +430,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
-      <div className="tabs" style={{ marginBottom: '1.5rem' }}>
-        {['analytics', 'books', 'borrows', 'pending', 'overdue', 'users'].map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
-            style={{ position: 'relative' }}
-          >
-            {t === 'pending' ? 'Pending' : t === 'analytics' ? 'Analytics' : t.charAt(0).toUpperCase() + t.slice(1)}
-            {t === 'overdue' && overdue.length > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  right: '-2px',
-                  background: 'var(--danger)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  padding: '2px 6px',
-                  fontSize: '0.7rem',
-                  fontWeight: 'bold',
-                  lineHeight: 1,
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                  border: '1px solid white'
-                }}
-              >
-                {overdue.length}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
 
 
       {tab === 'books' && (
@@ -596,19 +574,26 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td>
-                        {b.status !== 'returned' ? (
+                        {b.status === 'borrowed' ? (
                           <button
                             type="button"
-                            className="btn btn-warning btn-small"
+                            className="btn btn-ghost btn-small"
                             onClick={() => handleSendReminder(b.id)}
                           >
                             Send Due Reminder
+                          </button>
+                        ) : b.status === 'overdue' || b.status === 'pending_return' ? (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={() => handleConfirmReturn(b.id)}
+                          >
+                            Return Book
                           </button>
                         ) : (
                           <span className="muted">—</span>
                         )}
                       </td>
-
                     </tr>
                   ))
                 )}
