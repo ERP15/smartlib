@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, clearAuth } from '../utils/auth';
-import { logout, getMyBorrows, getNotifications, markNotificationRead, getOverdueBorrows } from '../services/api';
+import { logout, getMyBorrows, getNotifications, markNotificationRead, getOverdueBorrows, getPendingReturns } from '../services/api';
 
 
 export default function Layout({ children }) {
@@ -18,6 +18,8 @@ export default function Layout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [adminOverdueCount, setAdminOverdueCount] = useState(0);
+  const [adminPendingCount, setAdminPendingCount] = useState(0);
+
 
 
   React.useEffect(() => {
@@ -100,6 +102,28 @@ export default function Layout({ children }) {
 
     checkAdminOverdue();
     const interval = setInterval(checkAdminOverdue, 30000);
+
+    return () => clearInterval(interval);
+  }, [userId, userRole]);
+
+  React.useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      setAdminPendingCount(0);
+      return;
+    }
+
+    const checkAdminPending = async () => {
+      try {
+        const res = await getPendingReturns();
+        const pendingList = res.data.borrows || [];
+        setAdminPendingCount(pendingList.length);
+      } catch (err) {
+        console.error("Failed to check admin pending borrows", err);
+      }
+    };
+
+    checkAdminPending();
+    const interval = setInterval(checkAdminPending, 30000);
 
     return () => clearInterval(interval);
   }, [userId, userRole]);
@@ -205,6 +229,26 @@ export default function Layout({ children }) {
                             }}
                           >
                             {adminOverdueCount}
+                          </span>
+                        )}
+                        {t === 'pending' && adminPendingCount > 0 && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-12px',
+                              background: 'var(--warning)',
+                              color: 'white',
+                              borderRadius: '10px',
+                              padding: '2px 6px',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              lineHeight: 1,
+                              boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                              border: '1px solid white'
+                            }}
+                          >
+                            {adminPendingCount}
                           </span>
                         )}
                       </Link>

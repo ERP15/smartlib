@@ -71,6 +71,8 @@ def get_book(book_id):
 def _normalize(text):
     if not text:
         return ""
+    # Replace common replacement characters or bad encodings to standard characters
+    text = text.replace('\ufffd', 'e')
     # Remove accents/diacritics and convert to lowercase
     nfkd_form = unicodedata.normalize('NFKD', text)
     return "".join([c for c in nfkd_form if not unicodedata.combining(c)]).lower().strip()
@@ -79,6 +81,7 @@ def _normalize(text):
 @books_bp.route('/recommendations', methods=['GET'])
 @login_required
 def recommend_books():
+    import random
     user = get_current_user()
     genre_filter = (request.args.get('genre') or '').strip()
     author_filter = (request.args.get('author') or '').strip()
@@ -86,11 +89,15 @@ def recommend_books():
     genre_filter_norm = _normalize(genre_filter)
     author_filter_norm = _normalize(author_filter)
 
-    try:
-        limit = int(request.args.get('limit', 6))
-    except (TypeError, ValueError):
-        limit = 6
-    limit = max(1, min(limit, 20))
+    # If filter is active, increase the limit to return all relevant books for matches and related books
+    if genre_filter_norm or author_filter_norm:
+        limit = 100
+    else:
+        try:
+            limit = int(request.args.get('limit', 6))
+        except (TypeError, ValueError):
+            limit = 6
+        limit = max(1, min(limit, 20))
 
     history = (
         BorrowRecord.query
@@ -120,9 +127,8 @@ def recommend_books():
     )
     popularity = {row.book_id: int(row.borrow_count or 0) for row in popularity_rows}
 
-    query = Book.query.filter(Book.available_quantity > 0)
-    if loans_book_ids:
-        query = query.filter(~Book.id.in_(loans_book_ids))
+    # Query all books (do not filter out books that are currently borrowed/unavailable)
+    query = Book.query
 
     recommendations = []
     for book in query.all():
@@ -143,25 +149,41 @@ def recommend_books():
             score += author_hits * 6
             reasons.append(f"Same author as books you've borrowed: {book.author}")
 
-        if genre_filter_norm:
-            book_genre_norm = _normalize(book.genre)
-            is_genre_match = False
-            if genre_filter_norm in book_genre_norm or book_genre_norm in genre_filter_norm:
-                is_genre_match = True
-            elif genre_filter_norm == 'history' and 'historical' in book_genre_norm:
-                is_genre_match = True
-            elif genre_filter_norm == 'historical' and 'history' in book_genre_norm:
-                is_genre_match = True
+        # Boost if the exact book was previously borrowed by the user, without filtering it out
+        if book.id in loans_book_ids:
+            score += 10
+            reasons.append("You previously borrowed this book")
 
-            if is_genre_match:
-                score += 50
-                reasons.append(f"Matches requested genre: {genre_filter}")
+        # Handle filter scoring instead of filtering out
+        # We want to support OR matching (genre OR author) if both are provided
+        if genre_filter_norm or author_filter_norm:
+            is_match = False
+            if genre_filter_norm:
+                book_genre_norm = _normalize(book.genre)
+                is_genre_match = False
+                if genre_filter_norm in book_genre_norm or book_genre_norm in genre_filter_norm:
+                    is_genre_match = True
+                elif genre_filter_norm == 'history' and 'historical' in book_genre_norm:
+                    is_genre_match = True
+                elif genre_filter_norm == 'historical' and 'history' in book_genre_norm:
+                    is_genre_match = True
 
-        if author_filter_norm:
-            book_author_norm = _normalize(book.author)
-            if author_filter_norm in book_author_norm or book_author_norm in author_filter_norm:
-                score += 50
-                reasons.append(f"Matches requested author: {author_filter}")
+                if is_genre_match:
+                    is_match = True
+                    score += 50
+                    reasons.append(f"Matches requested genre: {genre_filter}")
+
+            if author_filter_norm:
+                book_author_norm = _normalize(book.author)
+                if author_filter_norm in book_author_norm or book_author_norm in author_filter_norm:
+                    is_match = True
+                    score += 50
+                    reasons.append(f"Matches requested author: {author_filter}")
+
+            # If filters are active, and this book doesn't match either filter, we still return it
+            # but it doesn't get the +50 score boost. This allows the frontend to show it under
+            # "Related Books You May Like".
+            # Note: We do not skip the book!
 
         borrow_popularity = popularity.get(book.id, 0)
         if borrow_popularity:
@@ -177,11 +199,11 @@ def recommend_books():
             'reasons': reasons,
         })
 
+    # Sort primarily by score descending, and randomly as a tie-breaker for unique variations
     recommendations.sort(
         key=lambda item: (
             -item['score'],
-            item['book']['title'].lower(),
-            item['book']['author'].lower(),
+            random.random(),
         )
     )
 
