@@ -11,7 +11,9 @@ function statusClass(status) {
 function formatDateTime(value) {
   if (!value) return '—';
   const d = new Date(value);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 export default function MyBorrowed() {

@@ -14,7 +14,7 @@ export default function Layout({ children }) {
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab') || 'analytics';
   const [showRolePicker, setShowRolePicker] = useState(false);
-  const [overdueBook, setOverdueBook] = useState(null);
+  const [overdueCount, setOverdueCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [adminOverdueCount, setAdminOverdueCount] = useState(0);
@@ -36,7 +36,7 @@ export default function Layout({ children }) {
   React.useEffect(() => {
     const currentUser = getUser();
     if (!currentUser || currentUser.role !== 'student') {
-      setOverdueBook(null);
+      setOverdueCount(0);
       return;
     }
 
@@ -46,8 +46,8 @@ export default function Layout({ children }) {
       try {
         const res = await getMyBorrows();
         const borrowsList = res.data.borrows || [];
-        const overdue = borrowsList.find(b => b.status === 'overdue');
-        setOverdueBook(overdue || null);
+        const overdueList = borrowsList.filter(b => b.status === 'overdue');
+        setOverdueCount(overdueList.length);
       } catch (err) {
         console.error("Failed to check student overdue books", err);
       }
@@ -212,7 +212,7 @@ export default function Layout({ children }) {
             <>
               {user.role === 'admin' && (
                 <>
-                  {['analytics', 'books', 'borrows', 'pending', 'overdue'].map((t) => {
+                  {['analytics', 'books', 'borrows', 'pending', 'overdue', 'users'].map((t) => {
                     const label = t === 'analytics' ? 'Admin Dashboard' : t === 'pending' ? 'Pending' : t.charAt(0).toUpperCase() + t.slice(1);
                     const isActive = location.pathname === '/admin' && activeTab === t;
                     return (
@@ -296,7 +296,7 @@ export default function Layout({ children }) {
         </nav>
       </header>
 
-      {user && user.role === 'student' && overdueBook && (
+      {user && user.role === 'student' && overdueCount > 0 && (
         <div 
           className="overdue-student-banner fade-in" 
           style={{
@@ -317,9 +317,10 @@ export default function Layout({ children }) {
         >
           <span>⚠️</span>
           <span>
-            You have an overdue book: <strong>{overdueBook.book_title}</strong>. 
-            It was due on <strong>{new Date(overdueBook.due_date).toLocaleString()}</strong>. 
-            Please return the book, it is already overdue!
+            {overdueCount === 1 
+              ? "You have 1 overdue book. Please return it as soon as possible."
+              : `You have ${overdueCount} overdue books. Please return them as soon as possible.`
+            }
           </span>
         </div>
       )}
@@ -392,7 +393,7 @@ export default function Layout({ children }) {
             fontWeight: 'bold'
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>🔔</span> Book Due Reminder ({notifications.length})
+              <span>🔔</span> Notifications ({notifications.length})
             </span>
             <button 
               type="button" 
@@ -436,6 +437,7 @@ export default function Layout({ children }) {
                   }}
                 >
                   <div style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '0.25rem' }}>
+                    {n.title === 'Book Overdue Notice' ? '⚠️ ' : n.title === 'Book Due Reminder' ? '📖 ' : ''}
                     {n.title}
                   </div>
                   <div style={{ color: 'var(--text)', marginBottom: '0.5rem', lineHeight: '1.4' }}>

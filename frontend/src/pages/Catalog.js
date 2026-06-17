@@ -178,8 +178,7 @@ export default function Catalog() {
     setMessage(null);
     setError(null);
     try {
-      const utcDueDate = new Date(borrowModal.dueDate).toISOString();
-      await borrowBook(borrowModal.book.id, null, null, utcDueDate);
+      await borrowBook(borrowModal.book.id, null, null, borrowModal.dueDate);
       setMessage('Borrow request submitted successfully.');
       closeBorrowModal();
       loadBooks(query.trim());

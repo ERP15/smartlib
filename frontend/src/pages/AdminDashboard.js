@@ -56,7 +56,9 @@ function resolveImageUrl(image) {
 function formatDateTime(value) {
   if (!value) return '—';
   const d = new Date(value);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 function getDaysOverdue(dueDate) {
@@ -553,13 +555,12 @@ export default function AdminDashboard() {
                   <th>Borrowed Book</th>
                   <th>Due Date</th>
                   <th>Borrow Status</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {borrows.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No borrow records in database.</td>
+                    <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No borrow records in database.</td>
                   </tr>
                 ) : (
                   borrows.map((b) => (
@@ -574,27 +575,6 @@ export default function AdminDashboard() {
                         <span className={`status ${b.status === 'overdue' ? 'danger' : b.status === 'returned' ? '' : 'warning'}`}>
                           {b.status}
                         </span>
-                      </td>
-                      <td>
-                        {b.status === 'borrowed' ? (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-small"
-                            onClick={() => handleSendReminder(b.id)}
-                          >
-                            Send Due Reminder
-                          </button>
-                        ) : b.status === 'overdue' || b.status === 'pending_return' ? (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-small"
-                            onClick={() => handleConfirmReturn(b.id)}
-                          >
-                            Return Book
-                          </button>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
                       </td>
                     </tr>
                   ))
@@ -675,7 +655,6 @@ export default function AdminDashboard() {
                     <th>Borrower Student</th>
                     <th>Overdue Title</th>
                     <th>Official Due Date</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -687,15 +666,6 @@ export default function AdminDashboard() {
                       </td>
                       <td>{b.book_title}</td>
                       <td>{formatDateTime(b.due_date)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-warning btn-small"
-                          onClick={() => handleSendReminder(b.id)}
-                        >
-                          Send Due Reminder
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1254,7 +1224,7 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <span>Borrower: <strong>{b.user_name}</strong> ({b.student_id})</span>
-                  <span>Due Date: {b.due_date && !isNaN(new Date(b.due_date).getTime()) ? new Date(b.due_date).toLocaleString() : '—'}</span>
+                  <span>Due Date: {formatDateTime(b.due_date)}</span>
                   <span style={{ color: 'var(--danger)', fontWeight: '600' }}>
                     Days Overdue: {getDaysOverdue(b.due_date)}
                   </span>

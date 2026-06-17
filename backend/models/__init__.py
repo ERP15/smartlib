@@ -72,7 +72,7 @@ class BorrowRecord(db.Model):
         due_date = self.due_date
         if isinstance(due_date, date) and not isinstance(due_date, datetime):
             due_date = datetime.combine(due_date, time.min)
-        return due_date < datetime.utcnow()
+        return due_date < datetime.now()
 
 
 class Notification(db.Model):

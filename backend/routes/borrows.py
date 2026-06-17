@@ -24,7 +24,7 @@ def _error(message, status):
 
 def process_return_late_check(record):
     if not record.actual_return_date:
-        record.actual_return_date = datetime.utcnow()
+        record.actual_return_date = datetime.now()
 
     if record.actual_return_date > record.due_date:
         user = record.user
@@ -136,7 +136,7 @@ def borrow_book():
         except Exception as e:
             return _error(f'Invalid due_date format: {str(e)}', 400)
         
-        if due <= datetime.utcnow():
+        if due <= datetime.now():
             return _error('Due date must be in the future', 400)
     else:
         borrow_duration = data.get('borrow_duration', BORROW_DAYS)
@@ -154,7 +154,7 @@ def borrow_book():
         if borrow_unit == 'hours' and not (1 <= borrow_duration <= MAX_BORROW_HOURS):
             return _error(f'borrow_duration must be between 1 and {MAX_BORROW_HOURS} hours', 400)
 
-        due = datetime.utcnow() + timedelta(days=borrow_duration if borrow_unit == 'days' else 0, hours=borrow_duration if borrow_unit == 'hours' else 0)
+        due = datetime.now() + timedelta(days=borrow_duration if borrow_unit == 'days' else 0, hours=borrow_duration if borrow_unit == 'hours' else 0)
 
     book = Book.query.get(book_id)
     if not book:
@@ -213,7 +213,7 @@ def return_book(borrow_id):
             return _error('No active borrow to return', 409)
 
         book = Book.query.get(record.book_id)
-        record.actual_return_date = datetime.utcnow()
+        record.actual_return_date = datetime.now()
         record.status = 'returned'
         if book:
             book.available_quantity = min(book.quantity, book.available_quantity + 1)
@@ -233,7 +233,7 @@ def return_book(borrow_id):
     if record.status == 'pending_return':
         return _error('Return request already submitted', 409)
 
-    record.return_request_date = datetime.utcnow()
+    record.return_request_date = datetime.now()
     record.status = 'pending_return'
 
     try:
@@ -256,7 +256,7 @@ def confirm_return(borrow_id):
         return _error('No active borrow to return', 409)
 
     book = Book.query.get(record.book_id)
-    record.actual_return_date = datetime.utcnow()
+    record.actual_return_date = datetime.now()
     record.status = 'returned'
     if book:
         book.available_quantity = min(book.quantity, book.available_quantity + 1)
@@ -283,7 +283,7 @@ def reject_return(borrow_id):
 
     record.return_request_date = None
     record.actual_return_date = None
-    record.status = 'overdue' if record.due_date < datetime.utcnow() else 'borrowed'
+    record.status = 'overdue' if record.due_date < datetime.now() else 'borrowed'
 
     try:
         db.session.commit()
