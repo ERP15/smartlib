@@ -212,7 +212,6 @@ export default function AdminDashboard() {
         name: editingUser.name,
         email: editingUser.email,
         student_id: editingUser.student_id,
-        role: editingUser.role,
         is_active: editingUser.is_active,
       });
       setMessage('User updated successfully.');
@@ -1070,18 +1069,19 @@ export default function AdminDashboard() {
                   required
                 />
               </label>
-              <label className="field" style={{ gridColumn: 'span 1' }}>
+              <div className="field" style={{ gridColumn: 'span 1' }}>
                 <span>System Role</span>
-                <select
-                  className="input"
-                  value={editingUser.role}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                  style={{ width: '100%' }}
-                >
-                  <option value="student">Student</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
+                <div style={{
+                  padding: '0.85rem 0',
+                  fontSize: '0.95rem',
+                  color: 'var(--text)',
+                  fontWeight: '500',
+                  cursor: 'default',
+                  userSelect: 'none'
+                }}>
+                  {editingUser.role === 'admin' ? 'Admin' : 'Student'}
+                </div>
+              </div>
               <label 
                 className="field" 
                 style={{ 
@@ -1098,7 +1098,7 @@ export default function AdminDashboard() {
               >
                 <input
                   type="checkbox"
-                  checked={editingUser.is_active}
+                  checked={editingUser.is_active ?? false}
                   onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
                   style={{ width: 'auto', margin: 0 }}
                 />

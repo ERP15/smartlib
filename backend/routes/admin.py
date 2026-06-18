@@ -497,12 +497,12 @@ def update_user(user_id):
         if existing and existing.id != user.id:
             return jsonify({'error': 'Student ID is already taken'}), 400
         user.student_id = data['student_id']
-    if 'role' in data:
-        if data['role'] not in ('admin', 'student'):
-            return jsonify({'error': 'Invalid role'}), 400
-        user.role = data['role']
     if 'is_active' in data:
-        user.is_active = bool(data['is_active'])
+        val = data['is_active']
+        if isinstance(val, str):
+            user.is_active = val.lower() in ('true', '1', 'yes')
+        else:
+            user.is_active = bool(val)
         if user.is_active:
             user.failed_login_attempts = 0
             if user.late_returns >= 5:
