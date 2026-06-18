@@ -271,6 +271,13 @@ def create_app():
             db.create_all()
             _apply_schema_upgrades(app)
 
+            # Cleanly truncate tables before seeding to reset auto-increment IDs
+            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+            for table in ['admin_logs', 'notifications', 'recommendations', 'borrow_records', 'books', 'users']:
+                db.session.execute(text(f"TRUNCATE TABLE {table};"))
+            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+            db.session.commit()
+
             sql_path = Path(__file__).resolve().parent.parent / 'database' / 'sample_data.sql'
             if not sql_path.exists():
                 return jsonify({"error": f"SQL file not found at {sql_path}"}), 404
