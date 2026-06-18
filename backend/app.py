@@ -238,10 +238,16 @@ def create_app():
         except Exception:
             logger.exception('Database auto-initialization failed during app startup')
 
+    @app.route('/')
+    def index():
+        from flask import jsonify
+        return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
+
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
         return send_from_directory(uploads_dir, filename)
+
 
     return app
 
