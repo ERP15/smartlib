@@ -227,8 +227,14 @@ def create_app():
     return app
 
 
+# Expose a top-level WSGI app object for Vercel's Python runtime.
+app = create_app()
+application = app
+handler = app
+
+
 if __name__ == '__main__':
     try:
-        create_app().run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+        app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     except Exception:
-        create_app().run(host='::', port=5000, debug=True, use_reloader=False)
+        app.run(host='::', port=5000, debug=True, use_reloader=False)
