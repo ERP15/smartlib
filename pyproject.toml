@@ -23,7 +23,12 @@ dependencies = [
 [tool.uv]
 package = false
 
+[tool.setuptools]
+packages = []
+py-modules = []
+
 [tool.vercel]
 entrypoint = "backend.app:app"
+
 
 
