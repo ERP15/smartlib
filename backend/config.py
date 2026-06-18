@@ -11,26 +11,42 @@ load_dotenv(project_root / '.env')
 
 
 def _build_mysql_uri():
-    user = os.getenv('DB_USER', 'root')
-    password = os.getenv('DB_PASSWORD', '')
-    host = os.getenv('DB_HOST', '127.0.0.1')
-    port = os.getenv('DB_PORT', '3306')
-    name = os.getenv('DB_NAME', 'smartlib')
+    on_vercel = os.getenv('VERCEL') == '1'
+    default_user = 'uxdw3uznfcxi6lkc' if on_vercel else 'root'
+    default_password = '3mBuqhLyX2QT5Pzp0rI2' if on_vercel else ''
+    default_host = 'bhafgne00w0zajbx61pd-mysql.services.clever-cloud.com' if on_vercel else '127.0.0.1'
+    default_port = '3306'
+    default_name = 'bhafgne00w0zajbx61pd' if on_vercel else 'smartlib'
+
+    user = os.getenv('DB_USER', default_user)
+    password = os.getenv('DB_PASSWORD', default_password)
+    host = os.getenv('DB_HOST', default_host)
+    port = os.getenv('DB_PORT', default_port)
+    name = os.getenv('DB_NAME', default_name)
     return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}"
 
 
 class Config:
+    on_vercel = os.getenv('VERCEL') == '1'
+    DEFAULT_USER = 'uxdw3uznfcxi6lkc' if on_vercel else 'root'
+    DEFAULT_PASSWORD = '3mBuqhLyX2QT5Pzp0rI2' if on_vercel else ''
+    DEFAULT_HOST = 'bhafgne00w0zajbx61pd-mysql.services.clever-cloud.com' if on_vercel else '127.0.0.1'
+    DEFAULT_PORT = '3306'
+    DEFAULT_NAME = 'bhafgne00w0zajbx61pd' if on_vercel else 'smartlib'
+
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev')
-    DB_USER = os.getenv('DB_USER', 'root')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
-    DB_HOST = os.getenv('DB_HOST', '127.0.0.1')
-    DB_PORT = os.getenv('DB_PORT', '3306')
-    DB_NAME = os.getenv('DB_NAME', 'smartlib')
+    DB_USER = os.getenv('DB_USER', DEFAULT_USER)
+    DB_PASSWORD = os.getenv('DB_PASSWORD', DEFAULT_PASSWORD)
+    DB_HOST = os.getenv('DB_HOST', DEFAULT_HOST)
+    DB_PORT = os.getenv('DB_PORT', DEFAULT_PORT)
+    DB_NAME = os.getenv('DB_NAME', DEFAULT_NAME)
 
     DEBUG = os.getenv('FLASK_ENV', 'production') == 'development'
 
     _database_url = os.getenv('DATABASE_URL', '').strip()
-    if _database_url:
+    if _database_url and not on_vercel:
+        SQLALCHEMY_DATABASE_URI = _database_url
+    elif _database_url and on_vercel and 'clever-cloud.com' in _database_url:
         SQLALCHEMY_DATABASE_URI = _database_url
     else:
         SQLALCHEMY_DATABASE_URI = _build_mysql_uri()

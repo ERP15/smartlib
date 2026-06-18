@@ -58,6 +58,10 @@ def _apply_schema_upgrades(app):
         db.session.execute(
             text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0 NOT NULL"),
         )
+    else:
+        db.session.execute(
+            text("ALTER TABLE users MODIFY COLUMN failed_login_attempts INT DEFAULT 0 NOT NULL"),
+        )
 
     # Check if late_returns column exists on users table
     exists_late = db.session.execute(
@@ -71,6 +75,10 @@ def _apply_schema_upgrades(app):
     if not exists_late:
         db.session.execute(
             text("ALTER TABLE users ADD COLUMN late_returns INT DEFAULT 0 NOT NULL"),
+        )
+    else:
+        db.session.execute(
+            text("ALTER TABLE users MODIFY COLUMN late_returns INT DEFAULT 0 NOT NULL"),
         )
         try:
             # Sync existing late returns from records where actual_return_date > due_date
@@ -258,6 +266,11 @@ def create_app():
         from pathlib import Path
         
         try:
+            # Explicitly create tables and run schema upgrades before seeding
+            import backend.models  # noqa: F401
+            db.create_all()
+            _apply_schema_upgrades(app)
+
             sql_path = Path(__file__).resolve().parent.parent / 'database' / 'sample_data.sql'
             if not sql_path.exists():
                 return jsonify({"error": f"SQL file not found at {sql_path}"}), 404
