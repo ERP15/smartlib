@@ -19,3 +19,7 @@ dependencies = [
   "reportlab==4.0.0",
   "cryptography"
 ]
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
