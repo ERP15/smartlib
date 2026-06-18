@@ -273,24 +273,6 @@ def create_app():
             db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
             db.session.commit()
 
-            # Execute schema.sql to recreate tables
-            schema_path = Path(__file__).resolve().parent.parent / 'database' / 'schema.sql'
-            if not schema_path.exists():
-                return jsonify({"error": f"Schema file not found at {schema_path}"}), 404
-                
-            with open(schema_path, 'r', encoding='utf-8') as f:
-                schema_content = f.read()
-                
-            schema_statements = schema_content.split(';')
-            for stmt in schema_statements:
-                stmt = stmt.strip()
-                if stmt:
-                    lines = [line.strip() for line in stmt.split('\n') if not line.strip().startswith('--')]
-                    clean_stmt = ' '.join(lines).strip()
-                    if clean_stmt.lower().startswith('use ') or clean_stmt.lower().startswith('create database '):
-                        continue
-                    db.session.execute(text(stmt))
-            db.session.commit()
 
             # Execute sample_data.sql to seed tables
             sql_path = Path(__file__).resolve().parent.parent / 'database' / 'sample_data.sql'
