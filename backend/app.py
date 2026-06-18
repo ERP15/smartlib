@@ -270,10 +270,14 @@ def create_app():
             for stmt in statements:
                 stmt = stmt.strip()
                 if stmt:
-                    if stmt.lower().startswith('use '):
+                    # Strip SQL comments to check if it's a USE statement
+                    lines = [line.strip() for line in stmt.split('\n') if not line.strip().startswith('--')]
+                    clean_stmt = ' '.join(lines).strip()
+                    if clean_stmt.lower().startswith('use '):
                         continue
                     db.session.execute(text(stmt))
                     count += 1
+
             db.session.commit()
             return jsonify({"status": "success", "message": f"Successfully seeded database with {count} statements!"}), 200
         except Exception as e:
