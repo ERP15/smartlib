@@ -1,9 +1,15 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'))
-    ? `${window.location.protocol}//${window.location.hostname}:5000`
-    : 'https://smartlib2.vercel.app');
+let API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+
+if (typeof window !== 'undefined' && 
+    window.location.hostname !== 'localhost' && 
+    window.location.hostname !== '127.0.0.1' && 
+    !window.location.hostname.startsWith('192.168.')) {
+  API_URL = 'https://smartlib2.vercel.app';
+} else if (typeof window !== 'undefined') {
+  API_URL = `${window.location.protocol}//${window.location.hostname}:5000`;
+}
 
 const api = axios.create({
   baseURL: API_URL,
