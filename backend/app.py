@@ -251,6 +251,36 @@ def create_app():
         from flask import jsonify
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
+    @app.route('/api/seed')
+    def seed_database():
+        from flask import jsonify
+        from sqlalchemy import text
+        from pathlib import Path
+        
+        try:
+            sql_path = Path(__file__).resolve().parent.parent / 'database' / 'sample_data.sql'
+            if not sql_path.exists():
+                return jsonify({"error": f"SQL file not found at {sql_path}"}), 404
+                
+            with open(sql_path, 'r', encoding='utf-8') as f:
+                sql_content = f.read()
+                
+            statements = sql_content.split(';')
+            count = 0
+            for stmt in statements:
+                stmt = stmt.strip()
+                if stmt:
+                    if stmt.lower().startswith('use '):
+                        continue
+                    db.session.execute(text(stmt))
+                    count += 1
+            db.session.commit()
+            return jsonify({"status": "success", "message": f"Successfully seeded database with {count} statements!"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
