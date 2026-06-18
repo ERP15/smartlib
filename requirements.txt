@@ -6,3 +6,5 @@ pymysql==1.1.0
 python-dotenv==1.0.0
 openpyxl==3.1.2
 reportlab==4.0.0
+cryptography
+
