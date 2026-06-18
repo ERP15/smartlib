@@ -195,12 +195,20 @@ def create_app():
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=25)
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
-    CORS(app, supports_credentials=True, origins=[
+    import os
+    allowed_origins = [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:3001',
         'http://127.0.0.1:3001',
-    ])
+        'https://smartlib-y5ul.vercel.app',
+    ]
+    frontend_url = os.getenv('FRONTEND_URL')
+    if frontend_url:
+        allowed_origins.append(frontend_url.rstrip('/'))
+
+    CORS(app, supports_credentials=True, origins=allowed_origins)
+
 
     db.init_app(app)
     bcrypt.init_app(app)

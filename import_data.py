@@ -1,13 +1,26 @@
+import os
 import mysql.connector
+from dotenv import load_dotenv
+
+# Load .env
+load_dotenv()
+
+host = os.getenv('DB_HOST', 'localhost')
+user = os.getenv('DB_USER', 'root')
+password = os.getenv('DB_PASSWORD', '')
+database = os.getenv('DB_NAME', 'smartlib')
+port = int(os.getenv('DB_PORT', '3306'))
 
 try:
     # Connect to MySQL
     conn = mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='',  # Change this if you have a password
-        database='smartlib'
+        host=host,
+        user=user,
+        password=password,
+        database=database,
+        port=port
     )
+
     cursor = conn.cursor()
     
     # Read the SQL file
