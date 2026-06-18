@@ -1,9 +1,12 @@
+import logging
 import sys
 from datetime import timedelta
 from pathlib import Path
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
@@ -214,10 +217,16 @@ def create_app():
     app.register_blueprint(borrows_bp, url_prefix='/api/borrows')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
-    with app.app_context():
-        import backend.models  # noqa: F401
-        db.create_all()
-        _apply_schema_upgrades(app)
+    # Avoid hard-failing import on serverless platforms when DB is unavailable.
+    # Set AUTO_CREATE_DB=true to run create_all/migrations automatically.
+    if app.config.get('AUTO_CREATE_DB', False):
+        try:
+            with app.app_context():
+                import backend.models  # noqa: F401
+                db.create_all()
+                _apply_schema_upgrades(app)
+        except Exception:
+            logger.exception('Database auto-initialization failed during app startup')
 
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
