@@ -16,8 +16,12 @@ try:
     from .config import Config
     from .extensions import db, bcrypt
 except ImportError:
-    from backend.config import Config
-    from backend.extensions import db, bcrypt
+    try:
+        from backend.config import Config
+        from backend.extensions import db, bcrypt
+    except ImportError:
+        from config import Config
+        from extensions import db, bcrypt
 
 
 def _register_blueprint(app, module_path, attr, prefix):
@@ -207,10 +211,16 @@ def create_app():
         from .routes.borrows import borrows_bp
         from .routes.admin import admin_bp
     except ImportError:
-        from backend.routes.auth import auth_bp
-        from backend.routes.books import books_bp
-        from backend.routes.borrows import borrows_bp
-        from backend.routes.admin import admin_bp
+        try:
+            from backend.routes.auth import auth_bp
+            from backend.routes.books import books_bp
+            from backend.routes.borrows import borrows_bp
+            from backend.routes.admin import admin_bp
+        except ImportError:
+            from routes.auth import auth_bp
+            from routes.books import books_bp
+            from routes.borrows import borrows_bp
+            from routes.admin import admin_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(books_bp, url_prefix='/api/books')
