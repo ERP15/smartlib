@@ -7,10 +7,10 @@ USE smartlib;
 -- INSERT SAMPLE USERS
 -- ============================================
 INSERT INTO users (student_id, name, email, password, role) VALUES
-('STU001', 'John Doe', 'john@example.com', '$2b$12$hash1', 'student'),
-('STU002', 'Jane Smith', 'jane@example.com', '$2b$12$hash2', 'student'),
-('STU003', 'Bob Wilson', 'bob@example.com', '$2b$12$hash3', 'student'),
-('ADMIN001', 'Admin User', 'admin@example.com', '$2b$12$hash5', 'admin');
+('STU001', 'John Doe', 'john@example.com', '$2b$12$3th5d3g2xiPWfhMRC7TwiOuVHs2Sn0ws0xg6gcky24Vj4nkzWiNTC', 'student'),
+('STU002', 'Jane Smith', 'jane@example.com', '$2b$12$3th5d3g2xiPWfhMRC7TwiOuVHs2Sn0ws0xg6gcky24Vj4nkzWiNTC', 'student'),
+('STU003', 'Bob Wilson', 'bob@example.com', '$2b$12$3th5d3g2xiPWfhMRC7TwiOuVHs2Sn0ws0xg6gcky24Vj4nkzWiNTC', 'student'),
+('ADMIN001', 'Admin User', 'admin@example.com', '$2b$12$3th5d3g2xiPWfhMRC7TwiOuVHs2Sn0ws0xg6gcky24Vj4nkzWiNTC', 'admin');
 
 -- ============================================
 -- INSERT SAMPLE BOOKS
