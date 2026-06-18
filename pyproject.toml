@@ -20,6 +20,10 @@ dependencies = [
   "cryptography"
 ]
 
-[tool.setuptools.packages.find]
-include = ["backend*"]
+[tool.uv]
+package = false
+
+[tool.vercel]
+entrypoint = "backend.app:app"
+
 
