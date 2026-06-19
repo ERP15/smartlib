@@ -476,7 +476,7 @@ def user_to_dict(user):
         'role': user.role,
         'is_active': user.is_active,
         'late_returns': user.late_returns,
-        'created_at': user.created_at.isoformat() if user.created_at else None
+        'created_at': safe_isoformat(user.created_at)
     }
 
 

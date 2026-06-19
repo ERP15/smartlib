@@ -1,3 +1,14 @@
+def safe_isoformat(val):
+    if not val:
+        return None
+    if hasattr(val, 'isoformat'):
+        return val.isoformat()
+    s = str(val)
+    if ' ' in s and 'T' not in s:
+        s = s.replace(' ', 'T')
+    return s
+
+
 def book_to_dict(book):
     return {
         'id': book.id,
@@ -18,10 +29,10 @@ def borrow_to_dict(record, include_user=False):
         'book_id': record.book_id,
         'book_title': record.book.title if record.book else None,
         'book_author': record.book.author if record.book else None,
-        'borrow_date': record.borrow_date.isoformat() if record.borrow_date else None,
-        'due_date': record.due_date.isoformat() if record.due_date else None,
-        'return_request_date': record.return_request_date.isoformat() if record.return_request_date else None,
-        'actual_return_date': record.actual_return_date.isoformat() if record.actual_return_date else None,
+        'borrow_date': safe_isoformat(record.borrow_date),
+        'due_date': safe_isoformat(record.due_date),
+        'return_request_date': safe_isoformat(record.return_request_date),
+        'actual_return_date': safe_isoformat(record.actual_return_date),
         'status': record.status,
         'is_overdue': record.is_overdue(),
     }
@@ -39,9 +50,8 @@ def notification_to_dict(notification):
         'title': notification.title,
         'message': notification.message,
         'book_title': notification.book_title,
-        'due_date': notification.due_date.isoformat() if notification.due_date else None,
+        'due_date': safe_isoformat(notification.due_date),
         'is_read': notification.is_read,
-        'created_at': notification.created_at.isoformat() if notification.created_at else None,
-        'updated_at': notification.updated_at.isoformat() if notification.updated_at else None,
+        'created_at': safe_isoformat(notification.created_at),
+        'updated_at': safe_isoformat(notification.updated_at),
     }
-
