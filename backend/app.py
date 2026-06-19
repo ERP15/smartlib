@@ -283,6 +283,25 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
+    @app.before_request
+    def check_token_auth():
+        from flask import request, session
+        if not session.get('user_id'):
+            auth_header = request.headers.get('Authorization')
+            if auth_header:
+                token = auth_header.replace('Bearer ', '').strip()
+                if token.startswith('session-'):
+                    try:
+                        uid = int(token.split('-')[1])
+                        from backend.models import User
+                        user = User.query.get(uid)
+                        if user:
+                            session['user_id'] = user.id
+                            session['role'] = user.role
+                    except Exception:
+                        pass
+
+
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
