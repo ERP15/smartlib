@@ -258,49 +258,6 @@ def create_app():
     def index():
         from flask import jsonify
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
-    @app.route('/api/seed')
-    def seed_database():
-        from flask import jsonify
-        from sqlalchemy import text
-        from pathlib import Path
-        
-        try:
-            # Drop all tables cleanly under key check disable to recreate them fresh
-            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-            tables = ['admin_logs', 'notifications', 'recommendations', 'borrow_records', 'books', 'users']
-            for table in tables:
-                db.session.execute(text(f"DROP TABLE IF EXISTS {table};"))
-            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-            db.session.commit()
-
-
-            # Execute sample_data.sql to seed tables
-            sql_path = Path(__file__).resolve().parent.parent / 'database' / 'sample_data.sql'
-            if not sql_path.exists():
-                return jsonify({"error": f"SQL file not found at {sql_path}"}), 404
-                
-            with open(sql_path, 'r', encoding='utf-8') as f:
-                sql_content = f.read()
-                
-            statements = sql_content.split(';')
-            count = 0
-            for stmt in statements:
-                stmt = stmt.strip()
-                if stmt:
-                    lines = [line.strip() for line in stmt.split('\n') if not line.strip().startswith('--')]
-                    clean_stmt = ' '.join(lines).strip()
-                    if clean_stmt.lower().startswith('use ') or clean_stmt.lower().startswith('create database '):
-                        continue
-                    db.session.execute(text(stmt))
-                    count += 1
-
-            db.session.commit()
-            return jsonify({"status": "success", "message": f"Successfully initialized schema and seeded database with {count} statements!"}), 200
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-
 
 
     @app.route('/uploads/book_images/<path:filename>')
