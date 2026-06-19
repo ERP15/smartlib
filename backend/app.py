@@ -266,13 +266,15 @@ def create_app():
         except Exception:
             logger.exception('Database auto-initialization failed during app startup')
 
-    # Ensure default admin has the correct password on startup
+    # Ensure default admin has the correct password on startup and is never locked out
     try:
         with app.app_context():
             from backend.models import User
             admin = User.query.filter_by(email='admin@gmail.com').first()
             if admin:
                 admin.password = bcrypt.generate_password_hash('Psyche_214').decode('utf-8')
+                admin.is_active = True
+                admin.failed_login_attempts = 0
                 db.session.commit()
     except Exception:
         logger.exception('Failed to synchronize admin password on startup')
