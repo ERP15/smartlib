@@ -151,7 +151,7 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([
+      const results = await Promise.allSettled([
         loadDashboard(),
         loadReports(),
         loadBooks(),
@@ -160,6 +160,15 @@ export default function AdminDashboard() {
         loadUsers(),
         loadOverdue(true),
       ]);
+      const failed = results.filter(r => r.status === 'rejected');
+      if (failed.length === results.length) {
+        // All failed — show error
+        const firstErr = failed[0].reason;
+        setError(firstErr?.response?.data?.error || 'Failed to load dashboard. Please try refreshing.');
+      } else if (failed.length > 0) {
+        // Some failed — don't block the UI, dashboard still usable
+        console.warn('Some dashboard data failed to load:', failed.map(f => f.reason?.message));
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
@@ -347,7 +356,20 @@ export default function AdminDashboard() {
   if (loading && !stats) {
     return (
       <div className="page">
-        <p className="muted">Loading admin dashboard...</p>
+        <p className="muted" style={{ textAlign: 'center', marginTop: '3rem' }}>Loading admin dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!loading && !stats && error) {
+    return (
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem' }}>
+        <div className="alert" style={{ maxWidth: '480px', textAlign: 'center' }}>
+          ⚠️ {error}
+        </div>
+        <button type="button" className="btn btn-primary" onClick={loadAll}>
+          🔄 Retry Loading
+        </button>
       </div>
     );
   }
