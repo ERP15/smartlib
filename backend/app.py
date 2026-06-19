@@ -283,6 +283,41 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
+    @app.route('/api/debug-users')
+    def debug_users():
+        from flask import jsonify
+        try:
+            from backend.models import User
+            from backend.routes.admin import user_to_dict
+            users = User.query.all()
+            serialized = []
+            for i, u in enumerate(users):
+                try:
+                    serialized.append(user_to_dict(u))
+                except Exception as ex:
+                    import traceback
+                    return jsonify({
+                        "status": "serialization_error",
+                        "user_index": i,
+                        "user_id": u.id,
+                        "user_email": u.email,
+                        "error": str(ex),
+                        "traceback": traceback.format_exc()
+                    }), 500
+            return jsonify({
+                "status": "success",
+                "count": len(serialized),
+                "users": serialized[:5]
+            })
+        except Exception as e:
+            import traceback
+            return jsonify({
+                "status": "query_error",
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            }), 500
+
+
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
