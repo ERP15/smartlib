@@ -283,6 +283,27 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
+    @app.route('/api/debug-db')
+    def debug_db():
+        from flask import jsonify
+        try:
+            from sqlalchemy import text
+            tables = db.session.execute(text("SHOW TABLES")).fetchall()
+            user_cols = db.session.execute(text("DESCRIBE users")).fetchall()
+            return jsonify({
+                "status": "success",
+                "tables": [t[0] for t in tables],
+                "columns": [list(c) for c in user_cols]
+            })
+        except Exception as e:
+            import traceback
+            return jsonify({
+                "status": "error",
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            }), 500
+
+
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
