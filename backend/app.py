@@ -285,15 +285,29 @@ def create_app():
 
     @app.route('/api/debug-db')
     def debug_db():
-        from flask import jsonify
+        from flask import jsonify, session
         try:
             from sqlalchemy import text
+            from backend.models import User
+            from backend.extensions import bcrypt
+            admin = User.query.filter_by(email='admin@gmail.com').first()
+            if admin:
+                pwd_hash = admin.password
+                check = bcrypt.check_password_hash(pwd_hash, 'Psyche_214')
+                session['test_id'] = 5
+                session.permanent = True
+            else:
+                check = None
+
             tables = db.session.execute(text("SHOW TABLES")).fetchall()
             user_cols = db.session.execute(text("DESCRIBE users")).fetchall()
             return jsonify({
                 "status": "success",
                 "tables": [t[0] for t in tables],
-                "columns": [list(c) for c in user_cols]
+                "columns": [list(c) for c in user_cols],
+                "admin_found": admin is not None,
+                "admin_role": admin.role if admin else None,
+                "password_check": check
             })
         except Exception as e:
             import traceback
