@@ -283,46 +283,6 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
-    @app.route('/api/debug-err')
-    def debug_err():
-        from flask import jsonify
-        try:
-            # Let's import all models and blueprints to see if it throws an error
-            from backend.routes.auth import auth_bp
-            from backend.routes.books import books_bp
-            from backend.routes.borrows import borrows_bp
-            from backend.routes.admin import admin_bp
-            from backend.models import User, Book, BorrowRecord
-            
-            # Let's query one user and serialize it
-            u = User.query.first()
-            u_dict = None
-            if u:
-                from backend.routes.admin import user_to_dict
-                u_dict = user_to_dict(u)
-                
-            # Let's query one borrow record and serialize it
-            br = BorrowRecord.query.first()
-            br_dict = None
-            if br:
-                from backend.serializers import borrow_to_dict
-                br_dict = borrow_to_dict(br, include_user=True)
-                
-            return jsonify({
-                "status": "success",
-                "message": "All routes, models and serialization test passed!",
-                "sample_user": u_dict,
-                "sample_borrow": br_dict
-            })
-        except Exception as e:
-            import traceback
-            return jsonify({
-                "status": "error",
-                "message": str(e),
-                "traceback": traceback.format_exc()
-            }), 500
-
-
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
