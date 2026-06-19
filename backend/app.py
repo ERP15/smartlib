@@ -204,6 +204,10 @@ def create_app():
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
     import os
+    # Configure production session cookies for cross-origin tracking on Vercel
+    if os.getenv('VERCEL') == '1' or not app.config.get('DEBUG', False):
+        app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+        app.config['SESSION_COOKIE_SECURE'] = True
     allowed_origins = [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
@@ -253,6 +257,17 @@ def create_app():
                 _apply_schema_upgrades(app)
         except Exception:
             logger.exception('Database auto-initialization failed during app startup')
+
+    # Ensure default admin has the correct password on startup
+    try:
+        with app.app_context():
+            from backend.models import User
+            admin = User.query.filter_by(email='admin@gmail.com').first()
+            if admin:
+                admin.password = bcrypt.generate_password_hash('Psyche_214').decode('utf-8')
+                db.session.commit()
+    except Exception:
+        logger.exception('Failed to synchronize admin password on startup')
 
     @app.route('/')
     def index():
