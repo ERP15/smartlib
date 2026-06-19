@@ -285,6 +285,9 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
+    # Lightweight in-process cache mapping uid -> role for serverless instances
+    _role_cache = {}
+
     @app.before_request
     def check_token_auth():
         from flask import request, session
@@ -295,12 +298,27 @@ def create_app():
                 if token.startswith('session-'):
                     try:
                         uid = int(token.split('-')[1])
-                        from backend.models import User
-                        user = User.query.get(uid)
-                        if user:
-                            session['user_id'] = user.id
-                            session['role'] = user.role
-                    except Exception:
+                        # Use cached role if available (avoids repeated DB calls on same instance)
+                        if uid in _role_cache:
+                            session['user_id'] = uid
+                            session['role'] = _role_cache[uid]
+                        else:
+                            try:
+                                from backend.models import User
+                                user = User.query.get(uid)
+                                if user and user.is_active:
+                                    session['user_id'] = user.id
+                                    session['role'] = user.role
+                                    _role_cache[uid] = user.role
+                                elif user:
+                                    # User exists but inactive — still restore session
+                                    # (auth routes handle is_active checks)
+                                    session['user_id'] = user.id
+                                    session['role'] = user.role
+                                    _role_cache[uid] = user.role
+                            except Exception:
+                                logger.warning('check_token_auth: DB lookup failed for uid=%s', uid)
+                    except (ValueError, IndexError):
                         pass
 
 
