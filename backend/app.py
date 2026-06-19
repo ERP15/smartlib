@@ -283,38 +283,6 @@ def create_app():
         return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
 
 
-    @app.route('/api/debug-login')
-    def debug_login():
-        from flask import jsonify, session
-        try:
-            from backend.models import User
-            from backend.extensions import bcrypt
-            admin = User.query.filter_by(email='admin@gmail.com').first()
-            if not admin:
-                return jsonify({"status": "error", "message": "Admin user not found"}), 404
-            
-            # Simulate state mutation and commit
-            admin.failed_login_attempts = 0
-            db.session.commit()
-            
-            session.permanent = True
-            session['user_id'] = admin.id
-            session['role'] = admin.role
-            
-            return jsonify({
-                "status": "success",
-                "message": "Debug login simulated and committed successfully"
-            })
-        except Exception as e:
-            import traceback
-            db.session.rollback()
-            return jsonify({
-                "status": "error",
-                "message": str(e),
-                "traceback": traceback.format_exc()
-            }), 500
-
-
     @app.route('/uploads/book_images/<path:filename>')
     def uploaded_book_image(filename):
         uploads_dir = Path(__file__).resolve().parent / 'uploads' / 'book_images'
