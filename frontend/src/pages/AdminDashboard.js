@@ -20,6 +20,7 @@ import {
   updateAdminUser,
   deleteAdminUser,
   backupDatabase,
+  API_URL as API_BASE_URL,
 } from '../services/api';
 import { saveAs } from 'file-saver';
 import {
@@ -37,7 +38,6 @@ import { Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:5000` : 'http://127.0.0.1:5000');
 
 const emptyBook = {
   title: '',

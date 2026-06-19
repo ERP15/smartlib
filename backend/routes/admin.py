@@ -53,6 +53,14 @@ def dashboard():
     }), 200
 
 
+def safe_isoformat(val):
+    if not val:
+        return ''
+    if hasattr(val, 'isoformat'):
+        return val.isoformat()
+    return str(val)
+
+
 def _collect_reports_data():
     mark_overdue_records()
 
@@ -124,7 +132,7 @@ def _collect_reports_data():
         .group_by(func.date(BorrowRecord.borrow_date))
         .all()
     )
-    borrows_map = {r.d.isoformat(): int(r.c) for r in borrows_by_date_q}
+    borrows_map = {safe_isoformat(r.d): int(r.c) for r in borrows_by_date_q}
     time_series = []
     for i in range(30):
         dt = start_date + datetime.timedelta(days=i)
@@ -138,7 +146,7 @@ def _collect_reports_data():
         .group_by(func.date(BorrowRecord.due_date))
         .all()
     )
-    overdue_map = {r.d.isoformat(): int(r.c) for r in overdue_by_date_q}
+    overdue_map = {safe_isoformat(r.d): int(r.c) for r in overdue_by_date_q}
     overdue_trend = []
     for i in range(30):
         dt = start_date + datetime.timedelta(days=i)

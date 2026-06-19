@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { borrowBook, getBooks, getRecommendations } from '../services/api';
+import { borrowBook, getBooks, getRecommendations, API_URL as API_BASE_URL } from '../services/api';
 import { getUser } from '../utils/auth';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:5000` : 'http://127.0.0.1:5000');
 const DEFAULT_BORROW_DAYS = 14;
 const FEATURED_GENRES = ['All', 'Fiction', 'Technical', 'Romance', 'History', 'Dystopian', 'Reference'];
 

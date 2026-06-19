@@ -1,4 +1,5 @@
 import logging
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -214,10 +215,17 @@ def create_app():
         'http://localhost:3001',
         'http://127.0.0.1:3001',
         'https://smartlib-y5ul.vercel.app',
+        re.compile(r'^https://.*\.vercel\.app$'),
+        re.compile(r'^http://localhost(:\d+)?$'),
+        re.compile(r'^http://127\.0\.0\.1(:\d+)?$'),
     ]
     frontend_url = os.getenv('FRONTEND_URL')
     if frontend_url:
         allowed_origins.append(frontend_url.rstrip('/'))
+        try:
+            allowed_origins.append(re.compile(f"^{re.escape(frontend_url.rstrip('/'))}$"))
+        except Exception:
+            pass
 
     CORS(app, supports_credentials=True, origins=allowed_origins)
 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-let API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+export let API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 
 if (typeof window !== 'undefined' && 
     window.location.hostname !== 'localhost' && 
