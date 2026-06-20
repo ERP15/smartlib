@@ -18,6 +18,8 @@ def _build_mysql_uri():
     host = os.getenv('DB_HOST', '127.0.0.1').strip()
     port = os.getenv('DB_PORT', '3306').strip()
     name = os.getenv('DB_NAME', 'smartlib').strip()
+    if 'clever-cloud.com' in name:
+        name = name.split('-')[0]
     return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}"
 
 
@@ -74,12 +76,22 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip()
     DB_HOST = os.getenv('DB_HOST', '127.0.0.1').strip()
     DB_PORT = os.getenv('DB_PORT', '3306').strip()
-    DB_NAME = os.getenv('DB_NAME', 'smartlib').strip()
+    
+    _db_name = os.getenv('DB_NAME', 'smartlib').strip()
+    if 'clever-cloud.com' in _db_name:
+        _db_name = _db_name.split('-')[0]
+    DB_NAME = _db_name
 
     DEBUG = os.getenv('FLASK_ENV', 'production') == 'development'
 
     _database_url = os.getenv('DATABASE_URL', '').strip()
     if _database_url:
+        if 'clever-cloud.com' in _database_url:
+            parts = _database_url.rsplit('/', 1)
+            db_name_part = parts[-1]
+            if 'clever-cloud.com' in db_name_part:
+                corrected_db_name = db_name_part.split('-')[0]
+                _database_url = f"{parts[0]}/{corrected_db_name}"
         SQLALCHEMY_DATABASE_URI = _database_url
     else:
         SQLALCHEMY_DATABASE_URI = _build_mysql_uri()
