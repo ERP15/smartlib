@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -6,9 +6,14 @@ from ..extensions import db
 from ..models import BorrowRecord, Notification
 
 
+def get_pht_now():
+    # Philippine Time is UTC+8
+    return datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8))).replace(tzinfo=None)
+
+
 def send_automated_reminders():
     """Send automated 1-day-before-due reminders."""
-    now = datetime.now()
+    now = get_pht_now()
     one_day_from_now = now + timedelta(days=1)
 
     upcoming_records = BorrowRecord.query.filter(
@@ -53,7 +58,7 @@ def send_automated_reminders():
 def mark_overdue_records():
     """Mark active loans past due_date as overdue. Safe to call on every request."""
     try:
-        now = datetime.now()
+        now = get_pht_now()
 
         def as_datetime(value):
             if isinstance(value, date) and not isinstance(value, datetime):

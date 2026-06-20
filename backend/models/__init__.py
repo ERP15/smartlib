@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone, timedelta
 
 from ..extensions import db
 
@@ -72,7 +72,8 @@ class BorrowRecord(db.Model):
         due_date = self.due_date
         if isinstance(due_date, date) and not isinstance(due_date, datetime):
             due_date = datetime.combine(due_date, time.min)
-        return due_date < datetime.now()
+        now_pht = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8))).replace(tzinfo=None)
+        return due_date < now_pht
 
 
 class Notification(db.Model):
