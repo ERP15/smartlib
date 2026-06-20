@@ -338,10 +338,20 @@ def send_reminder(borrow_id):
 @login_required
 def list_notifications():
     user = get_current_user()
-    notifications = Notification.query.filter_by(user_id=user.id, is_read=False).order_by(Notification.created_at.desc()).all()
-    return jsonify({
-        'notifications': [notification_to_dict(n) for n in notifications]
-    }), 200
+    if not user:
+        return _error('Login required', 401)
+    try:
+        notifications = (
+            Notification.query.filter_by(user_id=user.id, is_read=False)
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+        return jsonify({
+            'notifications': [notification_to_dict(n) for n in notifications],
+        }), 200
+    except SQLAlchemyError:
+        db.session.rollback()
+        return _error('Could not load notifications', 503)
 
 
 @borrows_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])

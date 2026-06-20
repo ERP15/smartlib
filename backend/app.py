@@ -3,7 +3,7 @@ import re
 import sys
 from datetime import timedelta
 from pathlib import Path
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from sqlalchemy import text
 
@@ -266,60 +266,62 @@ def create_app():
         except Exception:
             logger.exception('Database auto-initialization failed during app startup')
 
-    # Ensure default admin has the correct password on startup and is never locked out
+    # Only sync admin locally — never on every Vercel cold start (causes timeouts).
+    if os.getenv('VERCEL') != '1' and app.config.get('DEBUG'):
+        try:
+            with app.app_context():
+                from backend.models import User
+                admin = User.query.filter_by(email='admin@gmail.com').first()
+                if admin:
+                    admin.password = bcrypt.generate_password_hash('Psyche_214').decode('utf-8')
+                    admin.is_active = True
+                    admin.failed_login_attempts = 0
+                    db.session.commit()
+        except Exception:
+            logger.exception('Failed to synchronize admin password on startup')
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        db.session.rollback()
+        logger.exception('Internal server error')
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'Something went wrong. Please try again.',
+        }), 500
+
     try:
-        with app.app_context():
-            from backend.models import User
-            admin = User.query.filter_by(email='admin@gmail.com').first()
-            if admin:
-                admin.password = bcrypt.generate_password_hash('Psyche_214').decode('utf-8')
-                admin.is_active = True
-                admin.failed_login_attempts = 0
-                db.session.commit()
-    except Exception:
-        logger.exception('Failed to synchronize admin password on startup')
+        from sqlalchemy.exc import OperationalError, DBAPIError
+
+        @app.errorhandler(OperationalError)
+        @app.errorhandler(DBAPIError)
+        def handle_db_error(e):
+            db.session.rollback()
+            logger.warning('Database error: %s', e)
+            return jsonify({
+                'error': 'Database connection error',
+                'message': 'Database temporarily unavailable. Please refresh in a moment.',
+            }), 503
+    except ImportError:
+        pass
 
     @app.route('/')
     def index():
         from flask import jsonify
-        return jsonify({"status": "healthy", "service": "SmartLib Backend API"}), 200
+        return jsonify({'status': 'healthy', 'service': 'SmartLib Backend API'}), 200
 
-
-    # Lightweight in-process cache mapping uid -> role for serverless instances
-    _role_cache = {}
-
-    @app.before_request
-    def check_token_auth():
-        from flask import request, session
-        if not session.get('user_id'):
-            auth_header = request.headers.get('Authorization')
-            if auth_header:
-                token = auth_header.replace('Bearer ', '').strip()
-                if token.startswith('session-'):
-                    try:
-                        uid = int(token.split('-')[1])
-                        # Use cached role if available (avoids repeated DB calls on same instance)
-                        if uid in _role_cache:
-                            session['user_id'] = uid
-                            session['role'] = _role_cache[uid]
-                        else:
-                            try:
-                                from backend.models import User
-                                user = User.query.get(uid)
-                                if user and user.is_active:
-                                    session['user_id'] = user.id
-                                    session['role'] = user.role
-                                    _role_cache[uid] = user.role
-                                elif user:
-                                    # User exists but inactive — still restore session
-                                    # (auth routes handle is_active checks)
-                                    session['user_id'] = user.id
-                                    session['role'] = user.role
-                                    _role_cache[uid] = user.role
-                            except Exception:
-                                logger.warning('check_token_auth: DB lookup failed for uid=%s', uid)
-                    except (ValueError, IndexError):
-                        pass
+    @app.route('/api/health')
+    def health():
+        try:
+            db.session.execute(text('SELECT 1'))
+            db_status = 'ok'
+        except Exception as exc:
+            logger.warning('Health check DB failed: %s', exc)
+            db_status = 'error'
+        return jsonify({'status': 'ok', 'database': db_status}), 200 if db_status == 'ok' else 503
 
 
     @app.route('/uploads/book_images/<path:filename>')

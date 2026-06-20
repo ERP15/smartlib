@@ -54,7 +54,10 @@ export default function Layout({ children }) {
     };
 
     checkOverdue();
-    const interval = setInterval(checkOverdue, 10000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkOverdue();
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [location.pathname, userId, userRole]);
@@ -85,7 +88,10 @@ export default function Layout({ children }) {
     };
 
     checkNotifications();
-    const interval = setInterval(checkNotifications, 10000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkNotifications();
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [location.pathname, userId, userRole]);
@@ -110,7 +116,10 @@ export default function Layout({ children }) {
     };
 
     checkAdminOverdue();
-    const interval = setInterval(checkAdminOverdue, 10000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkAdminOverdue();
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [location.pathname, userId, userRole]);
@@ -135,7 +144,10 @@ export default function Layout({ children }) {
     };
 
     checkAdminPending();
-    const interval = setInterval(checkAdminPending, 10000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkAdminPending();
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [location.pathname, userId, userRole]);

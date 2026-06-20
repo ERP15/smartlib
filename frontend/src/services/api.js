@@ -1,16 +1,18 @@
 import axios from 'axios';
 
 const getApiUrl = () => {
-  let url = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-  if (typeof window !== 'undefined' && 
-      window.location.hostname !== 'localhost' && 
-      window.location.hostname !== '127.0.0.1' && 
-      !window.location.hostname.startsWith('192.168.')) {
-    url = 'https://smartlib2.vercel.app';
-  } else if (typeof window !== 'undefined') {
-    url = `${window.location.protocol}//${window.location.hostname}:5000`;
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.replace(/\/$/, '');
   }
-  return url;
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
+      return `${window.location.protocol}//${hostname}:5000`;
+    }
+    // On Vercel: frontend and API share the same origin.
+    return origin;
+  }
+  return 'http://127.0.0.1:5000';
 };
 
 export const API_URL = getApiUrl();
@@ -20,17 +22,33 @@ const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+  timeout: 45000,
 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+}, (error) => Promise.reject(error));
+
+// Retry once on 503 (serverless cold start / DB reconnect).
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (!config || config.__retry) {
+      return Promise.reject(error);
+    }
+    if (error.response?.status === 503 || error.code === 'ECONNABORTED') {
+      config.__retry = true;
+      await new Promise((r) => setTimeout(r, 1500));
+      return api.request(config);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const register = (payload) => api.post('/api/auth/register', payload);
 export const login = (payload) => api.post('/api/auth/login', payload);

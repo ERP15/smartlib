@@ -180,10 +180,11 @@ export default function AdminDashboard() {
     loadAll();
 
     const interval = setInterval(() => {
+      if (document.hidden) return;
       loadDashboard();
       loadOverdue(true);
       loadPendingReturns();
-    }, 15000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);

@@ -43,7 +43,10 @@ def _engine_options():
     is_clever_cloud = 'clever-cloud.com' in host
 
     if ON_VERCEL or is_clever_cloud:
-        connect_args['ssl'] = ssl.create_default_context()
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        connect_args['ssl'] = ssl_ctx
 
     options = {
         'connect_args': connect_args,
