@@ -300,13 +300,10 @@ def create_app():
         @app.errorhandler(DBAPIError)
         def handle_db_error(e):
             db.session.rollback()
-            import traceback
-            tb = traceback.format_exc()
             logger.warning('Database error: %s', e)
             return jsonify({
                 'error': 'Database connection error',
-                'message': str(e),
-                'traceback': tb
+                'message': 'Database temporarily unavailable. Please refresh in a moment.',
             }), 503
     except ImportError:
         pass
