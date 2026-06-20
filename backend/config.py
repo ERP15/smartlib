@@ -22,7 +22,14 @@ def _build_mysql_uri():
 
 
 def _engine_options():
-    """Serverless-safe SQLAlchemy engine settings (Vercel + Clever Cloud MySQL)."""
+    """Serverless-safe SQLAlchemy engine settings (Vercel + Clever Cloud MySQL).
+
+    Clever Cloud free tier allows only 5 simultaneous connections.
+    Vercel serverless spins up many instances at once - each instance would
+    normally hold open a connection pool, exhausting the 5-connection limit.
+    Using NullPool means connections are opened and immediately closed per
+    request, so we never accumulate idle connections across instances.
+    """
     from sqlalchemy.pool import NullPool
 
     connect_args = {
@@ -33,7 +40,9 @@ def _engine_options():
     }
 
     host = os.getenv('DB_HOST', '').strip()
-    if ON_VERCEL or 'clever-cloud.com' in host:
+    is_clever_cloud = 'clever-cloud.com' in host
+
+    if ON_VERCEL or is_clever_cloud:
         connect_args['ssl'] = ssl.create_default_context()
 
     options = {
@@ -41,13 +50,17 @@ def _engine_options():
         'pool_pre_ping': True,
     }
 
-    if ON_VERCEL:
-        # Do not keep idle connections across frozen serverless instances.
+    if ON_VERCEL or is_clever_cloud:
+        # NullPool: no persistent connection pool.
+        # Every request opens a fresh connection and closes it immediately.
+        # This is the only safe strategy with Clever Cloud's 5-connection cap
+        # and Vercel's many concurrent serverless instances.
         options['poolclass'] = NullPool
     else:
+        # Local dev: small pool, well within any local MySQL limits.
         options['pool_recycle'] = 280
-        options['pool_size'] = 5
-        options['max_overflow'] = 10
+        options['pool_size'] = 2
+        options['max_overflow'] = 2
 
     return options
 
